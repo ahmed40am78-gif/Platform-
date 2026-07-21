@@ -191,7 +191,7 @@
                     <!-- محتوى لوحة المعلم (مخفي حتى إدخال كلمة المرور) -->
                     <div id="teacher-dashboard-panel" class="space-y-6 hidden">
                         <div class="flex items-center justify-between bg-slate-900/60 p-4 border border-slate-800 rounded-2xl">
-                            <span class="text-xs text-emerald-400 font-bold"><i class="fa-solid fa-shield-check mr-1"></i> تم التحقق من هؤية المعلم بنجاح</span>
+                            <span class="text-xs text-emerald-400 font-bold"><i class="fa-solid fa-shield-check mr-1"></i> تم التحقق من هوية المعلم بنجاح</span>
                             <button onclick="lockTeacherPanel()" class="text-xs text-slate-400 hover:text-rose-400 transition-all"><i class="fa-solid fa-lock mr-1"></i> قفل اللوحة</button>
                         </div>
 
@@ -200,7 +200,7 @@
                                 <i class="fa-solid fa-cloud-arrow-up text-neonBlue"></i> رفع درس وملزمة جديدة
                             </h3>
 
-                            <form onsubmit="addNewLessonFromTeacher(event)" class="space-y-4">
+                            <form id="add-lesson-form" onsubmit="addNewLessonFromTeacher(event)" class="space-y-4">
                                 <div>
                                     <label class="block text-xs font-bold text-slate-300 mb-1">عنوان الدرس</label>
                                     <input type="text" id="teacher-video-title" required placeholder="مثال: الدرس الأول - الفيزياء" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-neonBlue focus:outline-none">
@@ -221,7 +221,7 @@
                                 <div id="video-url-container">
                                     <label class="block text-xs font-bold text-slate-300 mb-1">رابط الفيديو (رابط YouTube أو رابط فيديو مباشر MP4)</label>
                                     <input type="url" id="teacher-video-url" placeholder="https://www.youtube.com/watch?v=xxxxx أو رابط مباشر" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-neonBlue focus:outline-none">
-                                    <p class="text-[10px] text-slate-400 mt-1">💡 يفضل استخدام رابط YouTube لضمان عمل الفيديوهات الطويلة دون أي مشاكل على GitHub Pages.</p>
+                                    <p class="text-[10px] text-slate-400 mt-1">💡 يفضل استخدام رابط YouTube لضمان عمل الفيديوهات للطلاب على منصة GitHub Pages بدون مشاكل مساحة.</p>
                                 </div>
 
                                 <div id="video-file-container" class="hidden">
@@ -270,15 +270,10 @@
     <script>
         let isTeacherUnlocked = false;
 
+        // تهيئة التخزين الدائم بـ IndexedDB
         const DB_NAME = 'PlatformCloudDB';
         const DB_VERSION = 1;
         let db = null;
-        let localLessons = [];
-        let localStudents = JSON.parse(localStorage.getItem('platform_students_v2') || '[]');
-
-        window.addEventListener('DOMContentLoaded', async () => {
-            await initCloudDB();
-        });
 
         function initCloudDB() {
             return new Promise((resolve) => {
@@ -290,34 +285,9 @@
                 };
                 request.onsuccess = (e) => {
                     db = e.target.result;
-                    syncDataFromDB().then(() => resolve());
-                };
-                request.onerror = () => resolve();
-            });
-        }
-
-        async function syncDataFromDB() {
-            if (!db) return;
-            return new Promise((resolve) => {
-                const tx = db.transaction(['lessons', 'students'], 'readonly');
-                const lessonStore = tx.objectStore('lessons');
-                const studentStore = tx.objectStore('students');
-
-                const getLessons = lessonStore.getAll();
-                const getStudents = studentStore.getAll();
-
-                tx.oncomplete = () => {
-                    if (getLessons.result) {
-                        localLessons = getLessons.result;
-                    }
-                    if (getStudents.result && getStudents.result.length > 0) {
-                        localStudents = getStudents.result;
-                        localStorage.setItem('platform_students_v2', JSON.stringify(localStudents));
-                    }
-                    loadLessons();
-                    loadStudents();
                     resolve();
                 };
+                request.onerror = () => resolve();
             });
         }
 
@@ -325,10 +295,9 @@
             if (!db) return;
             return new Promise((resolve, reject) => {
                 const tx = db.transaction('lessons', 'readwrite');
-                const store = tx.objectStore('lessons');
-                const req = store.put(lesson);
-                req.onsuccess = () => resolve();
-                req.onerror = (e) => reject(e);
+                tx.objectStore('lessons').put(lesson);
+                tx.oncomplete = () => resolve();
+                tx.onerror = (e) => reject(e);
             });
         }
 
@@ -341,10 +310,30 @@
             });
         }
 
+        async function getAllLessonsFromDB() {
+            if (!db) return [];
+            return new Promise((resolve) => {
+                const tx = db.transaction('lessons', 'readonly');
+                const req = tx.objectStore('lessons').getAll();
+                req.onsuccess = () => resolve(req.result || []);
+                req.onerror = () => resolve([]);
+            });
+        }
+
         async function saveStudentToDB(student) {
             if (!db) return;
             const tx = db.transaction('students', 'readwrite');
             tx.objectStore('students').put(student);
+        }
+
+        async function getAllStudentsFromDB() {
+            if (!db) return JSON.parse(localStorage.getItem('platform_students_v2') || '[]');
+            return new Promise((resolve) => {
+                const tx = db.transaction('students', 'readonly');
+                const req = tx.objectStore('students').getAll();
+                req.onsuccess = () => resolve(req.result || []);
+                req.onerror = () => resolve([]);
+            });
         }
 
         function updateFileLabel(inputId, labelId) {
@@ -404,34 +393,36 @@
                 return;
             }
 
-            const existingStudent = localStudents.find(s => s.username === username);
+            const currentStudents = await getAllStudentsFromDB();
+            const existingStudent = currentStudents.find(s => s.username === username);
             if (existingStudent) {
                 alert('⚠️ اسم المستخدم هذا مستخدم بالفعل، يرجى اختيار اسم آخر.');
                 return;
             }
 
             const newStudent = { fullname, username, grade, email, password };
-            localStudents.push(newStudent);
-            localStorage.setItem('platform_students_v2', JSON.stringify(localStudents));
             await saveStudentToDB(newStudent);
+            localStorage.setItem('platform_students_v2', JSON.stringify([...currentStudents, newStudent]));
 
             alert('✅ تم إنشاء الحساب بنجاح! يمكنك الآن تسجيل الدخول.');
             document.getElementById('login-username').value = username;
             toggleAuthMode('login');
         }
 
-        function handleLogin(e) {
+        async function handleLogin(e) {
             e.preventDefault();
             const usernameInput = document.getElementById('login-username').value.trim();
             const passwordInput = document.getElementById('login-password').value;
 
+            // دخول المعلم
             if (usernameInput === 'teacher' && passwordInput === 'F123') {
                 isTeacherUnlocked = true;
                 openPlatform('الأستاذ (المعلم)', 'لوحة التحكم الإدارية');
                 return;
             }
 
-            const foundStudent = localStudents.find(s => (s.username === usernameInput || s.email === usernameInput) && s.password === passwordInput);
+            const currentStudents = await getAllStudentsFromDB();
+            const foundStudent = currentStudents.find(s => (s.username === usernameInput || s.email === usernameInput) && s.password === passwordInput);
             
             if (foundStudent) {
                 openPlatform(foundStudent.fullname, foundStudent.grade);
@@ -510,6 +501,18 @@
             return url;
         }
 
+        function readFileAsDataURL(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // ==========================================
+        // إضافة ورفع درس جديد بصورة متوافقة وآمنة
+        // ==========================================
         async function addNewLessonFromTeacher(e) {
             e.preventDefault();
             const btnText = document.getElementById('upload-btn-text');
@@ -518,192 +521,197 @@
             const title = document.getElementById('teacher-video-title').value.trim();
             const desc = document.getElementById('teacher-video-desc').value.trim();
             const sourceType = document.getElementById('video-source-type').value;
-            let videoUrl = '';
-            let videoBlob = null;
-            let isEmbed = false;
-
-            btnText.innerText = 'جاري رفع وحفظ الملفات...';
+            
+            btnText.innerText = 'جاري المعالجة والرفع...';
             uploadBtn.disabled = true;
 
             try {
+                let videoData = null;
+                let isEmbed = false;
+
                 if (sourceType === 'url') {
                     const rawUrl = document.getElementById('teacher-video-url').value.trim();
                     if (!rawUrl) {
-                        alert('⚠️ يرجى إدخال رابط الفيديو.');
+                        alert('⚠️ يرجى إدخال رابط الفيديو!');
                         uploadBtn.disabled = false;
                         btnText.innerText = 'رفع وحفظ الدرس بشكل دائم';
                         return;
                     }
-                    videoUrl = getEmbedVideoUrl(rawUrl);
-                    isEmbed = videoUrl.includes('youtube.com/embed');
+                    videoData = getEmbedVideoUrl(rawUrl);
+                    if (videoData.includes('youtube.com/embed')) {
+                        isEmbed = true;
+                    }
                 } else {
                     const videoFileInput = document.getElementById('teacher-video-file');
                     if (!videoFileInput.files || !videoFileInput.files[0]) {
-                        alert('⚠️ يرجى اختيار ملف فيديو للرفع.');
+                        alert('⚠️ يرجى اختيار ملف فيديو من جهازك!');
                         uploadBtn.disabled = false;
                         btnText.innerText = 'رفع وحفظ الدرس بشكل دائم';
                         return;
                     }
-                    videoBlob = videoFileInput.files[0];
+                    // تخزين الملف كـ Blob محلي عالي الكفاءة
+                    videoData = videoFileInput.files[0];
                 }
 
-                let pdfBlob = null;
-                let pdfName = '';
+                // قراءة ملف الـ PDF إن وجد
+                let pdfData = '';
                 const pdfFileInput = document.getElementById('teacher-pdf-file');
                 if (pdfFileInput.files && pdfFileInput.files[0]) {
-                    pdfBlob = pdfFileInput.files[0];
-                    pdfName = pdfFileInput.files[0].name;
+                    pdfData = await readFileAsDataURL(pdfFileInput.files[0]);
                 }
 
-                const newLesson = {
-                    id: 'lesson_' + Date.now(),
-                    title,
-                    desc,
-                    sourceType,
-                    videoUrl,
-                    videoBlob,
-                    isEmbed,
-                    pdfBlob,
-                    pdfName,
-                    createdAt: new Date().toLocaleDateString('ar-EG')
+                const lessonObject = {
+                    id: Date.now().toString(),
+                    title: title,
+                    desc: desc,
+                    sourceType: sourceType,
+                    videoData: videoData,
+                    isEmbed: isEmbed,
+                    pdfData: pdfData,
+                    date: new Date().toLocaleDateString('ar-EG')
                 };
 
-                await saveLessonToDB(newLesson);
-                
-                const existingIndex = localLessons.findIndex(l => l.id === newLesson.id);
-                if (existingIndex >= 0) {
-                    localLessons[existingIndex] = newLesson;
-                } else {
-                    localLessons.push(newLesson);
-                }
+                await saveLessonToDB(lessonObject);
 
                 alert('✅ تم رفع وحفظ الدرس بنجاح!');
-                
-                document.getElementById('teacher-video-title').value = '';
-                document.getElementById('teacher-video-desc').value = '';
-                document.getElementById('teacher-video-url').value = '';
-                document.getElementById('teacher-video-file').value = '';
-                document.getElementById('teacher-pdf-file').value = '';
+                document.getElementById('add-lesson-form').reset();
                 document.getElementById('video-label').innerText = 'اختيار فيديو من الجهاز للرفع السحابي';
                 document.getElementById('pdf-label').innerText = 'اختيار ملزمة (PDF) للرفع السحابي - اختياري';
-
+                toggleVideoSourceInput();
                 loadLessons();
-            } catch (error) {
-                console.error(error);
-                alert('❌ حدث خطأ أثناء معالجة الملفات. يُنصح برفع ملف أحدث أو استخدام رابط يوتيوب.');
+
+            } catch (err) {
+                console.error(err);
+                alert('❌ حدث خطأ أثناء معالجة الملف: ' + err.message);
             } finally {
                 uploadBtn.disabled = false;
                 btnText.innerText = 'رفع وحفظ الدرس بشكل دائم';
             }
         }
 
+        // ==========================================
+        // عرض الدروس وتشغيل الفيديوهات مع الصوت والصورة
+        // ==========================================
+        async function loadLessons() {
+            const lessons = await getAllLessonsFromDB();
+            
+            const grid = document.getElementById('student-lessons-grid');
+            const teacherList = document.getElementById('teacher-lessons-list');
+            
+            document.getElementById('videos-count-dash').innerText = lessons.length;
+            document.getElementById('teacher-videos-count').innerText = lessons.length;
+
+            grid.innerHTML = '';
+            teacherList.innerHTML = '';
+
+            if (lessons.length === 0) {
+                grid.innerHTML = `<div class="col-span-full text-center py-10 text-slate-500 font-bold">لا توجد دروس مرفوعة حالياً.</div>`;
+                teacherList.innerHTML = `<div class="text-center py-4 text-slate-500 text-xs">لا توجد دروس حالياً.</div>`;
+                return;
+            }
+
+            lessons.forEach((lesson) => {
+                let videoElement = '';
+                
+                if (lesson.isEmbed) {
+                    videoElement = `
+                        <div class="relative w-full aspect-video rounded-2xl overflow-hidden bg-black border border-slate-800">
+                            <iframe src="${lesson.videoData}" class="w-full h-full" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                        </div>`;
+                } else {
+                    let mediaSrc = '';
+                    if (lesson.videoData instanceof Blob || lesson.videoData instanceof File) {
+                        mediaSrc = URL.createObjectURL(lesson.videoData);
+                    } else if (typeof lesson.videoData === 'string') {
+                        mediaSrc = lesson.videoData;
+                    }
+
+                    videoElement = `
+                        <div class="relative w-full aspect-video rounded-2xl overflow-hidden bg-black border border-slate-800">
+                            <video controls playsinline preload="metadata" class="w-full h-full object-contain">
+                                <source src="${mediaSrc}">
+                                متصفحك لا يدعم تشغيل هذا الفيديو.
+                            </video>
+                        </div>`;
+                }
+
+                const pdfButton = lesson.pdfData ? `
+                    <a href="${lesson.pdfData}" download="${lesson.title}.pdf" class="flex-1 bg-rose-950/40 text-rose-400 border border-rose-800/50 hover:bg-rose-900/50 text-xs font-bold py-2.5 rounded-xl text-center transition-all flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-file-pdf"></i> تحميل الملزمة
+                    </a>` : '';
+
+                // كارت الطالب
+                const card = document.createElement('div');
+                card.className = "bg-cardBg border border-slate-800 rounded-3xl p-4 space-y-3 flex flex-col justify-between shadow-lg";
+                card.innerHTML = `
+                    <div class="space-y-3">
+                        ${videoElement}
+                        <div>
+                            <h4 class="font-extrabold text-white text-base">${lesson.title}</h4>
+                            <p class="text-xs text-slate-400 mt-1">${lesson.desc || 'لا يوجد وصف متاح'}</p>
+                        </div>
+                    </div>
+                    <div class="pt-2 border-t border-slate-800/80 flex items-center gap-2">
+                        ${pdfButton}
+                    </div>
+                `;
+                grid.appendChild(card);
+
+                // عنصر لوحة المعلم (للحذف)
+                const item = document.createElement('div');
+                item.className = "bg-slate-900/70 border border-slate-800 p-3 rounded-2xl flex items-center justify-between";
+                item.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-video text-neonBlue text-lg"></i>
+                        <div>
+                            <h5 class="text-xs font-bold text-white">${lesson.title}</h5>
+                            <span class="text-[10px] text-slate-400">${lesson.date || ''}</span>
+                        </div>
+                    </div>
+                    <button onclick="deleteLesson('${lesson.id}')" class="text-xs text-rose-400 hover:text-rose-300 p-2 rounded-lg hover:bg-rose-950/30 transition-all">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                `;
+                teacherList.appendChild(item);
+            });
+        }
+
         async function deleteLesson(id) {
-            if (confirm('هل أنت تأكد من حذف هذا الدرس؟')) {
+            if (confirm('هل أنت تأكد من رغبتك في حذف هذا الدرس؟')) {
                 await removeLessonFromDB(id);
-                localLessons = localLessons.filter(l => l.id !== id);
                 loadLessons();
             }
         }
 
-        function loadLessons() {
-            const countDash = document.getElementById('videos-count-dash');
-            const countTeacher = document.getElementById('teacher-videos-count');
-            const grid = document.getElementById('student-lessons-grid');
-            const teacherList = document.getElementById('teacher-lessons-list');
+        async function loadStudents() {
+            const students = await getAllStudentsFromDB();
+            const list = document.getElementById('teacher-students-list');
+            document.getElementById('students-count').innerText = students.length;
 
-            if (countDash) countDash.innerText = localLessons.length;
-            if (countTeacher) countTeacher.innerText = localLessons.length;
-
-            if (grid) {
-                grid.innerHTML = '';
-                if (localLessons.length === 0) {
-                    grid.innerHTML = `<p class="col-span-full text-center text-slate-500 py-8">لا توجد دروس مرفوعة حالياً.</p>`;
-                } else {
-                    localLessons.forEach(lesson => {
-                        let videoHtml = '';
-                        if (lesson.sourceType === 'url') {
-                            if (lesson.isEmbed) {
-                                videoHtml = `<iframe src="${lesson.videoUrl}" class="w-full h-48 rounded-xl" frameborder="0" allowfullscreen></iframe>`;
-                            } else {
-                                videoHtml = `<video src="${lesson.videoUrl}" controls class="w-full h-48 rounded-xl bg-black"></video>`;
-                            }
-                        } else if (lesson.videoBlob) {
-                            const blobUrl = URL.createObjectURL(lesson.videoBlob);
-                            videoHtml = `<video src="${blobUrl}" controls class="w-full h-48 rounded-xl bg-black"></video>`;
-                        }
-
-                        let pdfHtml = '';
-                        if (lesson.pdfBlob) {
-                            const pdfUrl = URL.createObjectURL(lesson.pdfBlob);
-                            pdfHtml = `<a href="${pdfUrl}" download="${lesson.pdfName || 'malzama.pdf'}" class="inline-flex items-center gap-2 text-xs bg-rose-950/50 text-rose-400 border border-rose-800/60 hover:bg-rose-900/60 px-3 py-2 rounded-xl transition-all font-bold mt-2">
-                                <i class="fa-solid fa-file-pdf"></i> تحميل الملزمة PDF
-                            </a>`;
-                        }
-
-                        grid.innerHTML += `
-                            <div class="bg-cardBg border border-slate-800 rounded-2xl p-4 flex flex-col justify-between space-y-3">
-                                <div>
-                                    ${videoHtml}
-                                    <h4 class="font-bold text-white text-base mt-3">${lesson.title}</h4>
-                                    <p class="text-xs text-slate-400 mt-1">${lesson.desc || ''}</p>
-                                </div>
-                                <div class="flex items-center justify-between pt-2 border-t border-slate-800/80">
-                                    <span class="text-[10px] text-slate-500">${lesson.createdAt || ''}</span>
-                                    ${pdfHtml}
-                                </div>
-                            </div>
-                        `;
-                    });
-                }
+            list.innerHTML = '';
+            if (students.length === 0) {
+                list.innerHTML = `<p class="text-center text-xs text-slate-500 py-2">لا يوجد طلاب مسجلون حتى الآن.</p>`;
+                return;
             }
 
-            if (teacherList) {
-                teacherList.innerHTML = '';
-                if (localLessons.length === 0) {
-                    teacherList.innerHTML = `<p class="text-xs text-slate-500">لا توجد دروس.</p>`;
-                } else {
-                    localLessons.forEach(lesson => {
-                        teacherList.innerHTML += `
-                            <div class="flex items-center justify-between bg-slate-900/50 p-3 rounded-xl border border-slate-800">
-                                <div>
-                                    <h5 class="text-xs font-bold text-white">${lesson.title}</h5>
-                                    <p class="text-[10px] text-slate-400">${lesson.createdAt || ''}</p>
-                                </div>
-                                <button onclick="deleteLesson('${lesson.id}')" class="text-xs text-rose-400 hover:text-rose-300 bg-rose-950/30 p-2 rounded-lg transition-all">
-                                    <i class="fa-solid fa-trash"></i>
-                                </button>
-                            </div>
-                        `;
-                    });
-                }
-            }
+            students.forEach(s => {
+                const item = document.createElement('div');
+                item.className = "bg-slate-900/50 border border-slate-800/80 p-2.5 rounded-xl flex items-center justify-between text-xs";
+                item.innerHTML = `
+                    <div>
+                        <span class="font-bold text-white block">${s.fullname}</span>
+                        <span class="text-[10px] text-slate-400">@${s.username} • ${s.grade}</span>
+                    </div>
+                    <span class="text-[10px] bg-cyan-950 text-cyan-300 px-2 py-1 rounded-md border border-cyan-800/50">${s.email}</span>
+                `;
+                list.appendChild(item);
+            });
         }
 
-        function loadStudents() {
-            const countElem = document.getElementById('students-count');
-            const listElem = document.getElementById('teacher-students-list');
-
-            if (countElem) countElem.innerText = localStudents.length;
-
-            if (listElem) {
-                listElem.innerHTML = '';
-                if (localStudents.length === 0) {
-                    listElem.innerHTML = `<p class="text-xs text-slate-500">لا يوجد طلاب مسجلون حالياً.</p>`;
-                } else {
-                    localStudents.forEach(s => {
-                        listElem.innerHTML += `
-                            <div class="flex items-center justify-between bg-slate-900/40 p-2.5 rounded-xl border border-slate-800/60 text-xs">
-                                <div>
-                                    <span class="font-bold text-white">${s.fullname}</span>
-                                    <span class="text-slate-400 text-[10px] block">@${s.username}</span>
-                                </div>
-                                <span class="bg-emerald-950/60 text-emerald-400 border border-emerald-800/50 text-[10px] px-2 py-1 rounded-md">${s.grade}</span>
-                            </div>
-                        `;
-                    });
-                }
-            }
-        }
+        // التهيئة عند تشغيل الصفحة
+        window.addEventListener('DOMContentLoaded', async () => {
+            await initCloudDB();
+        });
     </script>
 </body>
-    </html>
+</html>
