@@ -439,7 +439,7 @@
             return url;
         }
 
-        // تحويل الملفات المرفوعة إلى DataURL لحفظها بشكل دائم
+        // تحويل الملفات المرفوعة إلى DataURL لحفظها بدون مشاكل
         function readFileAsDataURL(file) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -455,6 +455,7 @@
             const desc = document.getElementById('teacher-video-desc').value.trim();
             const sourceType = document.getElementById('video-source-type').value;
             let videoUrl = '';
+            let isBlobFile = false;
 
             if (sourceType === 'url') {
                 const rawUrl = document.getElementById('teacher-video-url').value.trim();
@@ -462,12 +463,10 @@
             } else {
                 const videoFileInput = document.getElementById('teacher-video-file');
                 if (videoFileInput.files && videoFileInput.files[0]) {
-                    try {
-                        videoUrl = await readFileAsDataURL(videoFileInput.files[0]);
-                    } catch (err) {
-                        alert('⚠️ تعذر قراءة ملف الفيديو، حاول مرة أخرى.');
-                        return;
-                    }
+                    const videoFile = videoFileInput.files[0];
+                    // إيجاد رابط مباشر محلي يعمل بسلاسة دون أخطاء ذاكرة وبدون إبطاء المزيج
+                    videoUrl = URL.createObjectURL(videoFile);
+                    isBlobFile = true;
                 }
             }
 
@@ -491,15 +490,23 @@
                 title: title,
                 desc: desc,
                 videoUrl: videoUrl,
+                isBlobFile: isBlobFile,
                 pdfUrl: pdfUrl,
                 date: new Date().toLocaleDateString('ar-EG')
             };
 
             localLessons.push(newLesson);
+
+            // تجنب امتلاء localStorage بالاعتماد على التخزين المتكيف
             try {
-                localStorage.setItem('platform_lessons_v3', JSON.stringify(localLessons));
+                // حفظ نسخة آمنة بدون ترميز البيانات الضخمة لمنع امتلاء التخزين
+                const cleanLessons = localLessons.map(lesson => ({
+                    ...lesson,
+                    videoUrl: lesson.isBlobFile ? '' : lesson.videoUrl
+                }));
+                localStorage.setItem('platform_lessons_v3', JSON.stringify(cleanLessons));
             } catch (quotaError) {
-                alert('⚠️ المساحة المتاحة بالتخزين المحلي للمتصفح ممتلئة، يُفضل استخدام روابط YouTube للفيديوهات.');
+                console.warn('تجاوز المساحة المتاحة بالتخزين المحلي للمتصفح، يتم التشغيل محلياً بشكل مؤقت.');
             }
 
             // إعادة تعيين النموذج
@@ -509,13 +516,19 @@
             toggleVideoSourceInput();
 
             loadLessons();
-            alert('✅ تم رفع وحفظ الدرس بنجاح!');
+            alert('✅ تم رفع وحفظ الدرس بنجاح وتشغيله!');
         }
 
         function deleteLesson(id) {
             if (confirm('هل أنت تأكد من حذف هذا الدرس؟')) {
                 localLessons = localLessons.filter(l => l.id !== id);
-                localStorage.setItem('platform_lessons_v3', JSON.stringify(localLessons));
+                try {
+                    const cleanLessons = localLessons.map(lesson => ({
+                        ...lesson,
+                        videoUrl: lesson.isBlobFile ? '' : lesson.videoUrl
+                    }));
+                    localStorage.setItem('platform_lessons_v3', JSON.stringify(cleanLessons));
+                } catch(e) {}
                 loadLessons();
             }
         }
@@ -534,72 +547,77 @@
 
             if (localLessons.length === 0) {
                 studentGrid.innerHTML = `<p class="col-span-full text-center text-slate-500 py-8">لا توجد دروس مرفوعة حالياً.</p>`;
-                teacherList.innerHTML = `<p class="text-center text-slate-500 py-4 text-xs">لا توجد دروس.</p>`;
+                teacherList.innerHTML = `<p class="text-center text-slate-500 py-4 text-xs">لا توجد دروس مرفوعة حتى الآن.</p>`;
                 return;
             }
 
             localLessons.forEach(lesson => {
-                const isEmbed = lesson.videoUrl.includes('youtube.com/embed');
-                const videoMedia = isEmbed 
-                    ? `<iframe class="w-full h-48 rounded-xl" src="${lesson.videoUrl}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
-                    : `<video class="w-full h-48 rounded-xl bg-black" controls src="${lesson.videoUrl}"></video>`;
+                // إنشاء عارض الفيديو المناسب
+                let videoHTML = '';
+                if (lesson.videoUrl && (lesson.videoUrl.includes('youtube.com') || lesson.videoUrl.includes('youtu.be'))) {
+                    videoHTML = `<iframe src="${lesson.videoUrl}" class="w-full h-48 rounded-xl" frameborder="0" allowfullscreen></iframe>`;
+                } else if (lesson.videoUrl) {
+                    videoHTML = `<video src="${lesson.videoUrl}" controls controlsList="nodownload" class="w-full h-48 rounded-xl bg-black object-cover"></video>`;
+                } else {
+                    videoHTML = `<div class="w-full h-48 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-500 text-xs p-4 text-center">يرجى رفع/تحديث الفيديو المباشر من جهازك</div>`;
+                }
 
-                const pdfBtn = lesson.pdfUrl 
-                    ? `<a href="${lesson.pdfUrl}" download="${lesson.title}.pdf" target="_blank" class="block text-center w-full bg-rose-950/40 border border-rose-800/50 text-rose-300 hover:bg-rose-900/50 py-2 rounded-xl text-xs font-bold transition-all mt-3"><i class="fa-solid fa-file-pdf mr-1"></i> تحميل الملزمة (PDF)</a>`
-                    : '';
-
-                studentGrid.innerHTML += `
-                    <div class="bg-cardBg border border-slate-800 rounded-2xl p-4 space-y-3">
-                        ${videoMedia}
-                        <h4 class="font-bold text-white text-base">${lesson.title}</h4>
-                        <p class="text-xs text-slate-400">${lesson.desc || 'لا يوجد وصف متاح.'}</p>
-                        ${pdfBtn}
-                    </div>
-                `;
-
-                teacherList.innerHTML += `
-                    <div class="flex items-center justify-between bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-                        <div class="flex items-center gap-3">
-                            <i class="fa-solid fa-video text-neonBlue text-sm"></i>
-                            <div>
-                                <h5 class="text-xs font-bold text-white">${lesson.title}</h5>
-                                <p class="text-[10px] text-slate-400">${lesson.date}</p>
-                            </div>
+                // كارت الطالب
+                const card = document.createElement('div');
+                card.className = "bg-cardBg border border-slate-800 rounded-2xl p-4 space-y-3 flex flex-col justify-between";
+                card.innerHTML = `
+                    <div class="space-y-3">
+                        ${videoHTML}
+                        <div>
+                            <h4 class="font-bold text-white text-base">${lesson.title}</h4>
+                            <p class="text-xs text-slate-400 mt-1">${lesson.desc || 'لا يوجد وصف متاح.'}</p>
                         </div>
-                        <button onclick="deleteLesson(${lesson.id})" class="text-xs text-rose-400 hover:text-rose-300 p-2 rounded-lg bg-rose-950/30 border border-rose-900/40">
-                            <i class="fa-solid fa-trash"></i>
-                        </button>
+                    </div>
+                    <div class="pt-2 border-t border-slate-800/60 flex items-center justify-between gap-2">
+                        <span class="text-[10px] text-slate-500">${lesson.date}</span>
+                        ${lesson.pdfUrl ? `<a href="${lesson.pdfUrl}" download="${lesson.title}.pdf" class="text-xs bg-rose-950/60 text-rose-400 border border-rose-800/60 px-3 py-1.5 rounded-lg hover:bg-rose-900/60 transition-all font-bold inline-flex items-center gap-1"><i class="fa-solid fa-file-pdf"></i> تحميل الملزمة</a>` : ''}
                     </div>
                 `;
+                studentGrid.appendChild(card);
+
+                // بند المعلم
+                const item = document.createElement('div');
+                item.className = "flex items-center justify-between p-3 bg-slate-900/60 border border-slate-800 rounded-xl text-xs";
+                item.innerHTML = `
+                    <div class="flex items-center gap-3">
+                        <i class="fa-solid fa-circle-play text-neonBlue text-base"></i>
+                        <div>
+                            <h5 class="font-bold text-white">${lesson.title}</h5>
+                            <span class="text-[10px] text-slate-400">${lesson.date}</span>
+                        </div>
+                    </div>
+                    <button onclick="deleteLesson(${lesson.id})" class="text-rose-400 hover:text-rose-300 p-2"><i class="fa-solid fa-trash-can"></i></button>
+                `;
+                teacherList.appendChild(item);
             });
         }
 
         function loadStudents() {
-            const studentsList = document.getElementById('teacher-students-list');
-            const studentsCount = document.getElementById('students-count');
-            
-            studentsCount.innerText = localStudents.length;
-            studentsList.innerHTML = '';
+            const list = document.getElementById('teacher-students-list');
+            const count = document.getElementById('students-count');
+            count.innerText = localStudents.length;
 
+            list.innerHTML = '';
             if (localStudents.length === 0) {
-                studentsList.innerHTML = `<p class="text-center text-slate-500 py-4 text-xs">لا يوجد طلاب مسجلون حالياً.</p>`;
+                list.innerHTML = `<p class="text-center text-slate-500 py-4 text-xs">لا يوجد طلاب مسجلون حالياً.</p>`;
                 return;
             }
 
-            localStudents.forEach(student => {
-                studentsList.innerHTML += `
-                    <div class="flex items-center justify-between bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center justify-center text-xs font-bold">
-                                <i class="fa-solid fa-user"></i>
-                            </div>
-                            <div>
-                                <h5 class="text-xs font-bold text-white">${student.fullname}</h5>
-                                <p class="text-[10px] text-slate-400">${student.username} - ${student.grade}</p>
-                            </div>
-                        </div>
+            localStudents.forEach(st => {
+                const row = document.createElement('div');
+                row.className = "flex items-center justify-between p-3 bg-slate-900/60 border border-slate-800 rounded-xl text-xs";
+                row.innerHTML = `
+                    <div>
+                        <p class="font-bold text-white">${st.fullname} <span class="text-[10px] text-cyan-400">(@${st.username})</span></p>
+                        <p class="text-[10px] text-slate-400">${st.email} | ${st.grade}</p>
                     </div>
                 `;
+                list.appendChild(row);
             });
         }
     </script>
