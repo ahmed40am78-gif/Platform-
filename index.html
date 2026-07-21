@@ -1,40 +1,542 @@
 <!DOCTYPE html>
-<html lang="ar" dir="rtl">
+<html lang="ar" dir="rtl" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>منصة مبرمجي الغد | لعلوم الحاسب وتكنولوجيا المعلومات</title>
-    <!-- استيراد الخطوط لدعم اللغتين العربية والانجليزية باحترافية -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
-    <!-- استيراد مكتبة الأيقونات FontAwesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <!-- استخدام إطار العمل Tailwind CSS -->
+    <title>منصة الأستاذ التعليمية</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- استيراد مكتبة Supabase JS SDK -->
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Cairo Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- Supabase JS Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <script>
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
                         darkBg: '#090d16',
                         cardBg: '#111827',
-                        neonBlue: '#06b6d4',
+                        neonBlue: '#00f2fe',
                         neonGreen: '#10b981',
-                        neonOrange: '#f97316',
-                        accentGray: '#1f2937'
+                        neonPurple: '#8b5cf6',
+                        neonRose: '#f43f5e'
                     },
                     fontFamily: {
-                        sans: ['Cairo', 'Poppins', 'sans-serif'],
+                        cairo: ['Cairo', 'sans-serif'],
                     }
                 }
             }
         }
     </script>
     <style>
-        body {
+        body { font-family: 'Cairo', sans-serif; background-color: #090d16; color: #f3f4f6; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+    </style>
+</head>
+<body class="bg-darkBg min-h-screen text-slate-100 flex flex-col justify-between">
+
+    <!-- ========================================== -->
+    <!-- 1. شاشة تسجيل الدخول والتسجيل -->
+    <!-- ========================================== -->
+    <div id="auth-screen" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-cardBg border border-slate-800 rounded-3xl p-6 sm:p-8 w-full max-w-md shadow-2xl space-y-6">
+            <div class="text-center space-y-2">
+                <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-cyan-950/50 border border-neonBlue text-neonBlue text-2xl mb-2">
+                    <i class="fa-solid fa-graduation-cap"></i>
+                </div>
+                <h1 class="text-2xl font-black text-white">مرحباً بك في المنصة</h1>
+                <p class="text-xs text-slate-400">سجل دخولك أو أنشئ حسابك للوصول للدروس</p>
+            </div>
+
+            <!-- تبويب الاختيار -->
+            <div class="flex border-b border-slate-800">
+                <button id="tab-login-btn" onclick="toggleAuthMode('login')" class="flex-1 py-3 text-center border-b-2 border-neonBlue font-bold text-white transition-all">تسجيل الدخول</button>
+                <button id="tab-signup-btn" onclick="toggleAuthMode('signup')" class="flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 font-bold hover:text-slate-200 transition-all">حساب جديد</button>
+            </div>
+
+            <!-- نموذج تسجيل الدخول -->
+            <div id="login-form" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">اسم المستخدم أو البريد الإلكتروني</label>
+                    <input type="text" id="login-username" placeholder="مثال: ahmed123 أو name@domain.com" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-neonBlue focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">كلمة المرور</label>
+                    <input type="password" id="login-password" placeholder="••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-neonBlue focus:outline-none">
+                </div>
+                <button onclick="handleLogin()" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-lg shadow-cyan-500/20">
+                    تسجيل الدخول <i class="fa-solid fa-arrow-left mr-2"></i>
+                </button>
+            </div>
+
+            <!-- نموذج إنشاء حساب جديد -->
+            <div id="signup-form" class="space-y-4 hidden">
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">الاسم بالكامل</label>
+                    <input type="text" id="signup-fullname" placeholder="أحمد محمد" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-neonGreen focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">اسم المستخدم (للدخول به)</label>
+                    <input type="text" id="signup-username" placeholder="ahmed123" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-neonGreen focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">البريد الإلكتروني</label>
+                    <input type="email" id="signup-email" placeholder="student@example.com" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-neonGreen focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">الصف الدراسي</label>
+                    <select id="signup-grade" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-neonGreen focus:outline-none">
+                        <option value="الأول الثانوي">الصف الأول الثانوي</option>
+                        <option value="الثاني الثانوي">الصف الثاني الثانوي</option>
+                        <option value="الثالث الثانوي">الصف الثالث الثانوي</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">كلمة المرور</label>
+                    <input type="password" id="signup-password" placeholder="••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-neonGreen focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">تأكيد كلمة المرور</label>
+                    <input type="password" id="signup-confirm-password" placeholder="••••••••" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-neonGreen focus:outline-none">
+                </div>
+                <button onclick="handleSignUp()" class="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-lg shadow-emerald-500/20">
+                    إنشاء حساب جديد <i class="fa-solid fa-user-plus mr-2"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 2. الواجهة الرئيسية للمنصة (تظهر بعد الدخول) -->
+    <!-- ========================================== -->
+    <div id="main-platform" class="hidden min-h-screen flex flex-col">
+        <!-- الشريط العلوي -->
+        <header class="bg-cardBg border-b border-slate-800 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-cyan-950/80 border border-neonBlue flex items-center justify-center text-neonBlue font-bold text-xl">
+                    <i class="fa-solid fa-atom"></i>
+                </div>
+                <div>
+                    <h2 class="font-extrabold text-white text-base">منصة الأستاذ</h2>
+                    <p class="text-xs text-slate-400" id="display-user-grade">طالب</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="text-xs font-bold text-slate-300 hidden sm:inline" id="display-user-name">مستخدم</span>
+                <button onclick="handleLogout()" class="text-xs bg-rose-950/40 text-rose-400 border border-rose-800/50 hover:bg-rose-900/50 px-3 py-2 rounded-xl transition-all">
+                    خروج <i class="fa-solid fa-right-from-bracket mr-1"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="flex-1 flex flex-col md:flex-row">
+            <!-- القائمة الجانبية -->
+            <aside class="w-full md:w-64 bg-cardBg border-l border-slate-800 p-4 space-y-2">
+                <button id="btn-dashboard" onclick="switchTab('dashboard')" class="nav-btn w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-right font-bold transition-all text-neonBlue bg-cyan-950/30 border-r-4 border-neonBlue">
+                    <i class="fa-solid fa-house"></i> الرئيسية
+                </button>
+                <button id="btn-lessons" onclick="switchTab('lessons')" class="nav-btn w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-right font-bold text-slate-400 hover:text-white hover:bg-slate-800/40 transition-all">
+                    <i class="fa-solid fa-play"></i> الدروس والملازم
+                </button>
+                <button id="btn-teacher" onclick="switchTab('teacher')" class="nav-btn w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-right font-bold text-slate-400 hover:text-white hover:bg-slate-800/40 transition-all">
+                    <i class="fa-solid fa-sliders"></i> لوحة المعلم
+                </button>
+            </aside>
+
+            <!-- محتوى التبويبات -->
+            <main class="flex-1 p-6">
+                <!-- تبويب الرئيسية -->
+                <div id="tab-dashboard" class="tab-content active space-y-6">
+                    <div class="bg-gradient-to-r from-cyan-950/40 to-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-3">
+                        <h3 class="text-xl sm:text-2xl font-black text-white">مرحباً بك في لوحة التعلم الرقمية</h3>
+                        <p class="text-xs sm:text-sm text-slate-400 max-w-xl">يمكنك الدخول إلى قسم الدروس لمشاهدة الفيديوهات مباشرة وتحميل الملازم بصيغة PDF دون مشاكل الانقطاع.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="bg-cardBg border border-slate-800 p-5 rounded-2xl flex items-center justify-between">
+                            <div>
+                                <p class="text-xs text-slate-400">إجمالي الدروس المتاحة</p>
+                                <h4 class="text-2xl font-black text-white mt-1" id="videos-count-dash">0</h4>
+                            </div>
+                            <div class="w-12 h-12 rounded-xl bg-cyan-950 text-neonBlue border border-cyan-800 flex items-center justify-center text-xl">
+                                <i class="fa-solid fa-file-video"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- تبويب الدروس والملازم -->
+                <div id="tab-lessons" class="tab-content space-y-6">
+                    <h3 class="text-xl font-extrabold text-white">الدروس والملازم المتاحة</h3>
+                    <div id="student-lessons-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <!-- تُضاف الدروس هنا آلياً -->
+                    </div>
+                </div>
+
+                <!-- تبويب لوحة المعلم -->
+                <div id="tab-teacher" class="tab-content space-y-6">
+                    <div class="bg-cardBg border border-slate-800 rounded-3xl p-6 space-y-6">
+                        <h3 class="text-xl font-extrabold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-cloud-arrow-up text-neonBlue"></i> رفع درس وملزمة جديدة
+                        </h3>
+
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-300 mb-1">عنوان الدرس</label>
+                                <input type="text" id="teacher-video-title" placeholder="مثال: الدرس الأول - الميكانيكا" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-neonBlue focus:outline-none">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-300 mb-1">وصف الدرس</label>
+                                <textarea id="teacher-video-desc" rows="3" placeholder="وصف محتوى الدرس..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-neonBlue focus:outline-none"></textarea>
+                            </div>
+
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <!-- اختيار الفيديو -->
+                                <div class="border-2 border-dashed border-slate-700 rounded-2xl p-4 text-center hover:border-neonBlue transition-all cursor-pointer relative">
+                                    <input type="file" id="teacher-video-file" accept="video/*" class="absolute inset-0 opacity-0 cursor-pointer" onchange="updateFileLabel('teacher-video-file', 'video-label')">
+                                    <i class="fa-solid fa-video text-2xl text-neonBlue mb-2"></i>
+                                    <p class="text-xs font-bold text-slate-300" id="video-label">اضغط لاختيار فيديو الدرس (MP4)</p>
+                                </div>
+
+                                <!-- اختيار PDF -->
+                                <div class="border-2 border-dashed border-slate-700 rounded-2xl p-4 text-center hover:border-rose-800/60 transition-all cursor-pointer relative">
+                                    <input type="file" id="teacher-pdf-file" accept="application/pdf" class="absolute inset-0 opacity-0 cursor-pointer" onchange="updateFileLabel('teacher-pdf-file', 'pdf-label')">
+                                    <i class="fa-solid fa-file-pdf text-2xl text-rose-400 mb-2"></i>
+                                    <p class="text-xs font-bold text-slate-300" id="pdf-label">اضغط لاختيار ملزمة (PDF)</p>
+                                </div>
+                            </div>
+
+                            <button onclick="addNewLessonFromTeacher()" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-lg shadow-cyan-500/20">
+                                رفع وحفظ الدرس بشكل دائم <i class="fa-solid fa-upload mr-2"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- قائمة الدروس المرفوعة -->
+                    <div class="bg-cardBg border border-slate-800 rounded-3xl p-6 space-y-4">
+                        <h4 class="font-bold text-white text-sm">الدروس المرفوعة سابقاً (<span id="teacher-videos-count">0</span>)</h4>
+                        <div id="teacher-lessons-list" class="space-y-2">
+                            <!-- قائمة الدروس الحالية -->
+                        </div>
+                    </div>
+
+                    <!-- قائمة المستخدمين والطلاب المسجلين -->
+                    <div class="bg-cardBg border border-slate-800 rounded-3xl p-6 space-y-4">
+                        <h4 class="font-bold text-white text-sm flex items-center gap-2">
+                            <i class="fa-solid fa-users text-neonGreen"></i> الطلاب المسجلون حديثاً (<span id="students-count">0</span>)
+                        </h4>
+                        <div id="teacher-students-list" class="space-y-2 max-h-60 overflow-y-auto">
+                            <!-- تُضاف قائمة الطلاب المسجلين هنا -->
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 3. السكريبت المنفذ للعمليات والتكامل مع Supabase -->
+    <!-- ========================================== -->
+    <script>
+        // إعدادات الربط مع Supabase الخاصة بمشروعك
+        const SUPABASE_URL = 'https://skpenqzmeckoedhjudkm.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_X3AGsK844bwH3lEipw-nsw_MZfdFw82';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // التبديل بين تسجيل الدخول والحساب الجديد
+        function toggleAuthMode(mode) {
+            const loginForm = document.getElementById('login-form');
+            const signupForm = document.getElementById('signup-form');
+            const tabLoginBtn = document.getElementById('tab-login-btn');
+            const tabSignupBtn = document.getElementById('tab-signup-btn');
+
+            if (mode === 'login') {
+                loginForm.classList.remove('hidden');
+                signupForm.classList.add('hidden');
+                tabLoginBtn.className = "flex-1 py-3 text-center border-b-2 border-neonBlue font-bold text-white transition-all";
+                tabSignupBtn.className = "flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 font-bold hover:text-slate-200 transition-all";
+            } else {
+                loginForm.classList.add('hidden');
+                signupForm.classList.remove('hidden');
+                tabSignupBtn.className = "flex-1 py-3 text-center border-b-2 border-neonGreen font-bold text-white transition-all";
+                tabLoginBtn.className = "flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 font-bold hover:text-slate-200 transition-all";
+            }
+        }
+
+        // إنشاء حساب جديد وتخزين بينات الطالب
+        async function handleSignUp() {
+            const fullname = document.getElementById('signup-fullname').value.trim();
+            const username = document.getElementById('signup-username').value.trim();
+            const grade = document.getElementById('signup-grade').value;
+            const email = document.getElementById('signup-email').value.trim();
+            const password = document.getElementById('signup-password').value;
+            const confirmPassword = document.getElementById('signup-confirm-password').value;
+
+            if (!fullname || !username || !email || !password) {
+                alert('يرجى كتابة كافة البيانات المطلوبة.');
+                return;
+            }
+
+            if (password !== confirmPassword) {
+                alert('كلمتا المرور غير متطابقتين.');
+                return;
+            }
+
+            try {
+                // 1. التسجيل في نظام المصادقة
+                const { data: authData, error: authError } = await supabase.auth.signUp({
+                    email: email,
+                    password: password,
+                    options: {
+                        data: { full_name: fullname, username: username, grade: grade }
+                    }
+                });
+
+                if (authError) throw authError;
+
+                // 2. إدخال سجل الطالب في جدول Profiles ليظهر للمعلم وفي التسجيل
+                const userId = authData.user ? authData.user.id : crypto.randomUUID();
+                const { error: profileError } = await supabase.from('profiles').insert([
+                    { id: userId, username: username, full_name: fullname, grade: grade, email: email }
+                ]);
+
+                alert('تم إنشاء الحساب بنجاح! يمكنك الآن تسجيل الدخول.');
+                toggleAuthMode('login');
+            } catch (err) {
+                alert('خطأ أثناء التسجيل: ' + err.message);
+            }
+        }
+
+        // تسجيل الدخول
+        async function handleLogin() {
+            const userInput = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value;
+
+            // حساب المعلم الافتراضي للمعاينة
+            if (userInput === 'teacher' && password === 'F123') {
+                openPlatform('الأستاذ (المعلم)', 'لوحة التحكم الإدارية');
+                return;
+            }
+
+            try {
+                let targetEmail = userInput;
+
+                if (!userInput.includes('@')) {
+                    const { data: profile, error } = await supabase
+                        .from('profiles')
+                        .select('email')
+                        .eq('username', userInput)
+                        .maybeSingle();
+
+                    if (error || !profile) {
+                        alert('اسم المستخدم غير محدد أو غير موجود.');
+                        return;
+                    }
+                    targetEmail = profile.email;
+                }
+
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email: targetEmail,
+                    password: password
+                });
+
+                if (error) throw error;
+
+                const userMeta = data.user.user_metadata;
+                openPlatform(userMeta.full_name || userInput, userMeta.grade || 'طالب');
+            } catch (err) {
+                alert('بيانات الدخول غير صحيحة: ' + err.message);
+            }
+        }
+
+        function openPlatform(name, role) {
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('main-platform').classList.remove('hidden');
+            document.getElementById('display-user-name').innerText = name;
+            document.getElementById('display-user-grade').innerText = role;
+
+            loadLessonsFromDatabase();
+            loadRegisteredStudents();
+        }
+
+        function handleLogout() {
+            supabase.auth.signOut();
+            document.getElementById('main-platform').classList.add('hidden');
+            document.getElementById('auth-screen').classList.remove('hidden');
+        }
+
+        // رفع درس وملزمة بدقة وحفظهما دائماً
+        async function addNewLessonFromTeacher() {
+            const title = document.getElementById('teacher-video-title').value.trim();
+            const desc = document.getElementById('teacher-video-desc').value.trim();
+            const videoFile = document.getElementById('teacher-video-file').files[0];
+            const pdfFile = document.getElementById('teacher-pdf-file').files[0];
+
+            if (!title || !videoFile) {
+                alert('يرجى تحديد عنوان الدرس واختيار ملف الفيديو.');
+                return;
+            }
+
+            try {
+                alert('جاري رفع الفيديو والملف... يرجى الانتظار.');
+
+                // رفع الفيديو
+                const videoExt = videoFile.name.split('.').pop();
+                const videoPath = `video_${Date.now()}.${videoExt}`;
+                const { error: videoErr } = await supabase.storage.from('videos').upload(videoPath, videoFile, { cacheControl: '3600', upsert: true });
+                if (videoErr) throw videoErr;
+
+                const { data: videoUrlData } = supabase.storage.from('videos').getPublicUrl(videoPath);
+                const videoUrl = videoUrlData.publicUrl;
+
+                // رفع ملف الـ PDF إن وجد
+                let pdfUrl = null;
+                if (pdfFile) {
+                    const pdfExt = pdfFile.name.split('.').pop();
+                    const pdfPath = `pdf_${Date.now()}.${pdfExt}`;
+                    const { error: pdfErr } = await supabase.storage.from('pdfs').upload(pdfPath, pdfFile, { cacheControl: '3600', upsert: true });
+                    if (pdfErr) throw pdfErr;
+
+                    const { data: pdfUrlData } = supabase.storage.from('pdfs').getPublicUrl(pdfPath);
+                    pdfUrl = pdfUrlData.publicUrl;
+                }
+
+                // حفظ البيانات بجدول قاعدة البيانات
+                const { error: dbErr } = await supabase.from('lessons').insert([
+                    { title: title, description: desc, video_url: videoUrl, pdf_url: pdfUrl }
+                ]);
+
+                if (dbErr) throw dbErr;
+
+                alert('تم رفع ونشر الدرس والملزمة بنجاح!');
+                document.getElementById('teacher-video-title').value = '';
+                document.getElementById('teacher-video-desc').value = '';
+                loadLessonsFromDatabase();
+
+            } catch (err) {
+                alert('حدث خطأ أثناء عملية الرفع: ' + err.message);
+            }
+        }
+
+        // تحميل الدروس المتاحة وعرض مقاطع الفيديو والملفات
+        async function loadLessonsFromDatabase() {
+            try {
+                const { data: lessons, error } = await supabase
+                    .from('lessons')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                const grid = document.getElementById('student-lessons-grid');
+                const teacherList = document.getElementById('teacher-lessons-list');
+                const dashCount = document.getElementById('videos-count-dash');
+                const teacherCount = document.getElementById('teacher-videos-count');
+
+                if (dashCount) dashCount.innerText = `${lessons.length} درس`;
+                if (teacherCount) teacherCount.innerText = lessons.length;
+
+                grid.innerHTML = '';
+                teacherList.innerHTML = '';
+
+                if(lessons.length === 0) {
+                    grid.innerHTML = '<p class="text-slate-500 text-sm col-span-full">لا توجد دروس مرفوعة حتى الآن.</p>';
+                }
+
+                lessons.forEach(lesson => {
+                    grid.innerHTML += `
+                        <div class="bg-cardBg border border-slate-800 rounded-2xl p-5 space-y-4">
+                            <div class="rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center">
+                                <video src="${lesson.video_url}" controls preload="metadata" class="w-full h-full object-contain"></video>
+                            </div>
+                            <h4 class="font-bold text-white text-base">${lesson.title}</h4>
+                            <p class="text-slate-400 text-xs">${lesson.description || 'لا يوجد وصف متاح'}</p>
+                            ${lesson.pdf_url ? `
+                                <a href="${lesson.pdf_url}" target="_blank" download class="inline-flex items-center gap-2 text-xs font-bold text-rose-400 bg-rose-950/40 border border-rose-800/40 px-3 py-2 rounded-xl hover:bg-rose-900/50 transition-all">
+                                    <i class="fa-solid fa-file-pdf"></i> تحميل ملزمة الدرس (PDF)
+                                </a>
+                            ` : ''}
+                        </div>
+                    `;
+
+                    teacherList.innerHTML += `
+                        <div class="bg-slate-900 border border-slate-800 p-3 rounded-xl flex items-center justify-between text-xs">
+                            <span class="font-bold text-slate-200">${lesson.title}</span>
+                            <span class="text-neonGreen">نشط ✅</span>
+                        </div>
+                    `;
+                });
+
+            } catch (err) {
+                console.error('خطأ في تحميل الدروس:', err.message);
+            }
+        }
+
+        // جلب وقائمة الطلاب المسجلين بالمنصة
+        async function loadRegisteredStudents() {
+            try {
+                const { data: profiles, error } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (error) throw error;
+
+                const studentsList = document.getElementById('teacher-students-list');
+                const studentsCount = document.getElementById('students-count');
+
+                if (studentsCount) studentsCount.innerText = profiles.length;
+                studentsList.innerHTML = '';
+
+                if (profiles.length === 0) {
+                    studentsList.innerHTML = '<p class="text-slate-500 text-xs">لم يسجل أي طالب حتى الآن.</p>';
+                    return;
+                }
+
+                profiles.forEach(student => {
+                    studentsList.innerHTML += `
+                        <div class="bg-slate-900 border border-slate-800 p-3 rounded-xl flex items-center justify-between text-xs">
+                            <div>
+                                <p class="font-bold text-white">${student.full_name || 'طالب'}</p>
+                                <p class="text-slate-400 text-[10px]">اسم المستخدم: @${student.username || 'بدون'} | البريد: ${student.email || 'غير متاح'}</p>
+                            </div>
+                            <span class="bg-cyan-950 text-neonBlue border border-cyan-800/60 px-2.5 py-1 rounded-lg font-semibold">${student.grade || 'غير محدد'}</span>
+                        </div>
+                    `;
+                });
+            } catch (err) {
+                console.error('خطأ في استرجاع حسابات الطلاب:', err.message);
+            }
+        }
+
+        function updateFileLabel(inputId, statusId) {
+            const file = document.getElementById(inputId).files[0];
+            if (file) {
+                document.getElementById(statusId).innerText = `تم اختيار: ${file.name}`;
+            }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.className = "nav-btn w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-right font-bold text-slate-400 hover:text-white hover:bg-slate-800/40 transition-all";
+            });
+
+            document.getElementById(`tab-${tabId}`).classList.add('active');
+            const activeBtn = document.getElementById(`btn-${tabId}`);
+            if (activeBtn) {
+                activeBtn.className = "nav-btn w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-right font-bold transition-all text-neonBlue bg-cyan-950/30 border-r-4 border-neonBlue";
+            }
+        }
+    </script>
+</body>
+</html>        body {
             background-color: #090d16;
             background-image: 
                 radial-gradient(circle at 10% 20%, rgba(6, 182, 212, 0.03) 0%, transparent 40%),
