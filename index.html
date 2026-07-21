@@ -429,182 +429,136 @@
             return url;
         }
 
-        // تحويل الملفات محلياً وسحابياً دون أخطاء
-        function readFileAsDataURL(file) {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onload = () => resolve(reader.result);
-                reader.onerror = error => reject(error);
-                reader.readAsDataURL(file);
-            });
-        }
-
-        async function addNewLessonFromTeacher(e) {
+        function addNewLessonFromTeacher(e) {
             e.preventDefault();
-            const submitBtn = document.getElementById('upload-btn');
-            const originalBtnContent = submitBtn.innerHTML;
-
             const title = document.getElementById('teacher-video-title').value.trim();
             const desc = document.getElementById('teacher-video-desc').value.trim();
             const sourceType = document.getElementById('video-source-type').value;
-            const pdfFile = document.getElementById('teacher-pdf-file').files[0];
-
             let videoUrl = '';
 
-            try {
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = `جاري المعالجة والرفع... <i class="fa-solid fa-spinner fa-spin mr-2"></i>`;
-
-                if (sourceType === 'url') {
-                    const rawVideoUrl = document.getElementById('teacher-video-url').value.trim();
-                    if (!rawVideoUrl) {
-                        alert('⚠️ يرجى إدخال رابط الفيديو!');
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = originalBtnContent;
-                        return;
-                    }
-                    videoUrl = getEmbedVideoUrl(rawVideoUrl);
-                } else {
-                    const videoFile = document.getElementById('teacher-video-file').files[0];
-                    if (!videoFile) {
-                        alert('⚠️ يرجى اختيار ملف فيديو من الجهاز!');
-                        submitBtn.disabled = false;
-                        submitBtn.innerHTML = originalBtnContent;
-                        return;
-                    }
-                    videoUrl = await readFileAsDataURL(videoFile);
+            if (sourceType === 'url') {
+                const rawUrl = document.getElementById('teacher-video-url').value.trim();
+                videoUrl = getEmbedVideoUrl(rawUrl);
+            } else {
+                const videoFileInput = document.getElementById('teacher-video-file');
+                if (videoFileInput.files && videoFileInput.files[0]) {
+                    videoUrl = URL.createObjectURL(videoFileInput.files[0]);
                 }
-
-                let pdfUrl = null;
-                if (pdfFile) {
-                    pdfUrl = await readFileAsDataURL(pdfFile);
-                }
-
-                const newLesson = { id: Date.now(), title, description: desc, video_url: videoUrl, pdf_url: pdfUrl };
-                localLessons.unshift(newLesson);
-                
-                localStorage.setItem('platform_lessons_v3', JSON.stringify(localLessons));
-
-                alert('✅ تم إضافة الدرس والملزمة بنجاح! متاح الآن للجميع.');
-                document.getElementById('teacher-video-title').value = '';
-                document.getElementById('teacher-video-desc').value = '';
-                document.getElementById('teacher-video-url').value = '';
-                document.getElementById('teacher-video-file').value = '';
-                document.getElementById('teacher-pdf-file').value = '';
-                document.getElementById('video-label').innerText = 'اختيار فيديو من الجهاز للرفع السحابي';
-                document.getElementById('pdf-label').innerText = 'اختيار ملزمة (PDF) للرفع السحابي - اختياري';
-
-                loadLessons();
-            } catch (error) {
-                console.error(error);
-                alert('❌ حدث خطأ أثناء معالجة الملفات، يرجى المحاولة مرة أخرى.');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalBtnContent;
             }
+
+            let pdfUrl = '';
+            const pdfFileInput = document.getElementById('teacher-pdf-file');
+            if (pdfFileInput.files && pdfFileInput.files[0]) {
+                pdfUrl = URL.createObjectURL(pdfFileInput.files[0]);
+            }
+
+            if (!videoUrl) {
+                alert('⚠️ يرجى إدخال رابط فيديو أو اختيار ملف فيديو!');
+                return;
+            }
+
+            const newLesson = {
+                id: Date.now(),
+                title: title,
+                desc: desc,
+                videoUrl: videoUrl,
+                pdfUrl: pdfUrl,
+                date: new Date().toLocaleDateString('ar-EG')
+            };
+
+            localLessons.push(newLesson);
+            localStorage.setItem('platform_lessons_v3', JSON.stringify(localLessons));
+
+            // إعادة تعيين النموذج
+            e.target.reset();
+            document.getElementById('video-label').innerText = 'اختيار فيديو من الجهاز للرفع السحابي';
+            document.getElementById('pdf-label').innerText = 'اختيار ملزمة (PDF) للرفع السحابي - اختياري';
+            toggleVideoSourceInput();
+
+            loadLessons();
+            alert('✅ تم رفع وحفظ الدرس بنجاح!');
         }
 
-        // إمكانية حذف الدرس من المعلم
-        function deleteLesson(lessonId) {
-            if (confirm('هل أنت تأكد من إزالة هذا الدرس نهائياً؟')) {
-                localLessons = localLessons.filter(lesson => lesson.id !== lessonId);
+        function deleteLesson(id) {
+            if (confirm('هل أنت تأكد من حذف هذا الدرس؟')) {
+                localLessons = localLessons.filter(l => l.id !== id);
                 localStorage.setItem('platform_lessons_v3', JSON.stringify(localLessons));
                 loadLessons();
             }
         }
 
-        // عرض الدروس للطالب والمعلم
         function loadLessons() {
-            const grid = document.getElementById('student-lessons-grid');
+            const studentGrid = document.getElementById('student-lessons-grid');
             const teacherList = document.getElementById('teacher-lessons-list');
-            const countDash = document.getElementById('videos-count-dash');
-            const countTeacher = document.getElementById('teacher-videos-count');
+            const dashCount = document.getElementById('videos-count-dash');
+            const teacherCount = document.getElementById('teacher-videos-count');
 
-            grid.innerHTML = '';
+            dashCount.innerText = localLessons.length;
+            teacherCount.innerText = localLessons.length;
+
+            studentGrid.innerHTML = '';
             teacherList.innerHTML = '';
 
-            countDash.innerText = localLessons.length;
-            countTeacher.innerText = localLessons.length;
-
             if (localLessons.length === 0) {
-                grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500">لا توجد دروس متاحة حالياً.</div>`;
-                teacherList.innerHTML = `<div class="text-center py-4 text-slate-500 text-xs">لم يتم إضافة أي دروس بعد.</div>`;
+                studentGrid.innerHTML = `<p class="col-span-full text-center text-slate-500 py-8">لا توجد دروس مرفوعة حالياً.</p>`;
+                teacherList.innerHTML = `<p class="text-center text-slate-500 py-4 text-xs">لا توجد دروس.</p>`;
                 return;
             }
 
             localLessons.forEach(lesson => {
-                // بطاقة الطالب
-                const isEmbed = lesson.video_url.includes('youtube.com/embed');
-                let videoElement = '';
+                // عرض للطلاب
+                const isEmbed = lesson.videoUrl.includes('youtube.com/embed');
+                const videoMedia = isEmbed 
+                    ? `<iframe class="w-full h-48 rounded-xl" src="${lesson.videoUrl}" frameborder="0" allowfullscreen></iframe>`
+                    : `<video class="w-full h-48 rounded-xl bg-black" controls src="${lesson.videoUrl}"></video>`;
 
-                if (isEmbed) {
-                    videoElement = `<iframe src="${lesson.video_url}" class="w-full h-48 rounded-xl" frameborder="0" allowfullscreen></iframe>`;
-                } else {
-                    videoElement = `<video src="${lesson.video_url}" controls class="w-full h-48 rounded-xl bg-black object-cover"></video>`;
-                }
-
-                const pdfButton = lesson.pdf_url 
-                    ? `<a href="${lesson.pdf_url}" download="ملزمة_${lesson.title}.pdf" target="_blank" class="flex-1 bg-rose-950/60 border border-rose-800/60 hover:bg-rose-900/80 text-rose-300 text-xs font-bold py-2.5 px-3 rounded-xl text-center transition-all flex items-center justify-center gap-2">
-                        <i class="fa-solid fa-file-pdf text-rose-400"></i> تحميل الملزمة
-                       </a>`
+                const pdfBtn = lesson.pdfUrl 
+                    ? `<a href="${lesson.pdfUrl}" target="_blank" download class="block text-center w-full bg-rose-950/40 border border-rose-800/50 text-rose-300 hover:bg-rose-900/50 py-2 rounded-xl text-xs font-bold transition-all mt-3"><i class="fa-solid fa-file-pdf mr-1"></i> تحميل الملزمة (PDF)</a>`
                     : '';
 
-                grid.innerHTML += `
-                    <div class="bg-cardBg border border-slate-800 rounded-3xl p-4 flex flex-col justify-between space-y-4 hover:border-slate-700 transition-all">
-                        <div class="space-y-3">
-                            ${videoElement}
-                            <h4 class="font-bold text-white text-base">${lesson.title}</h4>
-                            <p class="text-xs text-slate-400 leading-relaxed">${lesson.description || 'لا يوجد وصف متاح.'}</p>
-                        </div>
-                        <div class="flex items-center gap-2 pt-2 border-t border-slate-800/60">
-                            ${pdfButton}
-                        </div>
+                studentGrid.innerHTML += `
+                    <div class="bg-cardBg border border-slate-800 rounded-2xl p-4 space-y-3">
+                        ${videoMedia}
+                        <h4 class="font-bold text-white text-base">${lesson.title}</h4>
+                        <p class="text-xs text-slate-400">${lesson.desc || 'لا يوجد وصف متاح.'}</p>
+                        ${pdfBtn}
                     </div>
                 `;
 
-                // قائمة التحكم الخاصة بالمعلم
+                // عرض في لوحة المعلم
                 teacherList.innerHTML += `
-                    <div class="flex items-center justify-between p-3 bg-slate-900 border border-slate-800 rounded-xl">
-                        <div class="flex items-center gap-3">
-                            <i class="fa-solid fa-video text-neonBlue"></i>
-                            <div>
-                                <h5 class="text-xs font-bold text-white">${lesson.title}</h5>
-                                <p class="text-[10px] text-slate-400">${lesson.pdf_url ? 'مرفق ملزمة PDF' : 'بدون ملزمة'}</p>
-                            </div>
+                    <div class="flex items-center justify-between bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                        <div>
+                            <p class="text-sm font-bold text-white">${lesson.title}</p>
+                            <span class="text-[10px] text-slate-500">${lesson.date}</span>
                         </div>
-                        <button onclick="deleteLesson(${lesson.id})" class="text-xs text-rose-400 hover:text-rose-300 bg-rose-950/40 border border-rose-800/40 px-3 py-1.5 rounded-lg transition-all">
-                            حذف <i class="fa-solid fa-trash-can mr-1"></i>
+                        <button onclick="deleteLesson(${lesson.id})" class="text-xs text-rose-400 hover:bg-rose-950/50 p-2 rounded-lg transition-all">
+                            <i class="fa-solid fa-trash"></i>
                         </button>
                     </div>
                 `;
             });
         }
 
-        // تحميل قائمة الطلاب المسجلين
         function loadStudents() {
-            const list = document.getElementById('teacher-students-list');
-            const count = document.getElementById('students-count');
-            list.innerHTML = '';
-            count.innerText = localStudents.length;
+            const studentsList = document.getElementById('teacher-students-list');
+            const studentsCount = document.getElementById('students-count');
+
+            studentsCount.innerText = localStudents.length;
+            studentsList.innerHTML = '';
 
             if (localStudents.length === 0) {
-                list.innerHTML = `<div class="text-center py-4 text-slate-500 text-xs">لا يوجد طلاب مسجلون حالياً.</div>`;
+                studentsList.innerHTML = `<p class="text-center text-slate-500 py-4 text-xs">لا يوجد طلاب مسجلون حتى الآن.</p>`;
                 return;
             }
 
             localStudents.forEach(student => {
-                list.innerHTML += `
-                    <div class="flex items-center justify-between p-3 bg-slate-900/80 border border-slate-800/80 rounded-xl">
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-lg bg-emerald-950/60 text-neonGreen border border-emerald-800/60 flex items-center justify-center font-bold text-xs">
-                                <i class="fa-solid fa-user-graduate"></i>
-                            </div>
-                            <div>
-                                <h5 class="text-xs font-bold text-white">${student.fullname}</h5>
-                                <p class="text-[10px] text-slate-400">${student.username} | ${student.grade}</p>
-                            </div>
+                studentsList.innerHTML += `
+                    <div class="flex items-center justify-between bg-slate-900/60 p-3 rounded-xl border border-slate-800">
+                        <div>
+                            <p class="text-xs font-bold text-white">${student.fullname} (${student.username})</p>
+                            <p class="text-[10px] text-slate-400">${student.email} | ${student.grade}</p>
                         </div>
-                        <span class="text-[10px] text-slate-500">${student.email}</span>
                     </div>
                 `;
             });
