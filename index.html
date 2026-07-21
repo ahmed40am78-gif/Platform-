@@ -417,19 +417,39 @@
             }
         }
 
-        // تحويل روابط يوتيوب العادية إلى روابط التضمين Embed
+        // تحويل روابط يوتيوب بمختلف أنواعها إلى روابط التضمين Embed
         function getEmbedVideoUrl(url) {
             if (!url) return '';
-            let regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
-            let match = url.match(regExp);
+            let videoId = '';
+            
+            if (url.includes('youtu.be/')) {
+                videoId = url.split('youtu.be/')[1].split('?')[0].split('&')[0];
+            } else if (url.includes('youtube.com/watch')) {
+                const urlParams = new URLSearchParams(new URL(url).search);
+                videoId = urlParams.get('v');
+            } else if (url.includes('youtube.com/embed/')) {
+                return url;
+            } else if (url.includes('youtube.com/shorts/')) {
+                videoId = url.split('youtube.com/shorts/')[1].split('?')[0].split('&')[0];
+            }
 
-            if (match && match[2].length === 11) {
-                return `https://www.youtube.com/embed/${match[2]}`;
+            if (videoId) {
+                return `https://www.youtube.com/embed/${videoId}`;
             }
             return url;
         }
 
-        function addNewLessonFromTeacher(e) {
+        // تحويل الملفات المرفوعة إلى DataURL لحفظها بشكل دائم
+        function readFileAsDataURL(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function addNewLessonFromTeacher(e) {
             e.preventDefault();
             const title = document.getElementById('teacher-video-title').value.trim();
             const desc = document.getElementById('teacher-video-desc').value.trim();
@@ -442,14 +462,23 @@
             } else {
                 const videoFileInput = document.getElementById('teacher-video-file');
                 if (videoFileInput.files && videoFileInput.files[0]) {
-                    videoUrl = URL.createObjectURL(videoFileInput.files[0]);
+                    try {
+                        videoUrl = await readFileAsDataURL(videoFileInput.files[0]);
+                    } catch (err) {
+                        alert('⚠️ تعذر قراءة ملف الفيديو، حاول مرة أخرى.');
+                        return;
+                    }
                 }
             }
 
             let pdfUrl = '';
             const pdfFileInput = document.getElementById('teacher-pdf-file');
             if (pdfFileInput.files && pdfFileInput.files[0]) {
-                pdfUrl = URL.createObjectURL(pdfFileInput.files[0]);
+                try {
+                    pdfUrl = await readFileAsDataURL(pdfFileInput.files[0]);
+                } catch (err) {
+                    console.error('Error reading PDF file', err);
+                }
             }
 
             if (!videoUrl) {
@@ -467,7 +496,11 @@
             };
 
             localLessons.push(newLesson);
-            localStorage.setItem('platform_lessons_v3', JSON.stringify(localLessons));
+            try {
+                localStorage.setItem('platform_lessons_v3', JSON.stringify(localLessons));
+            } catch (quotaError) {
+                alert('⚠️ المساحة المتاحة بالتخزين المحلي للمتصفح ممتلئة، يُفضل استخدام روابط YouTube للفيديوهات.');
+            }
 
             // إعادة تعيين النموذج
             e.target.reset();
@@ -506,14 +539,13 @@
             }
 
             localLessons.forEach(lesson => {
-                // عرض للطلاب
                 const isEmbed = lesson.videoUrl.includes('youtube.com/embed');
                 const videoMedia = isEmbed 
-                    ? `<iframe class="w-full h-48 rounded-xl" src="${lesson.videoUrl}" frameborder="0" allowfullscreen></iframe>`
+                    ? `<iframe class="w-full h-48 rounded-xl" src="${lesson.videoUrl}" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`
                     : `<video class="w-full h-48 rounded-xl bg-black" controls src="${lesson.videoUrl}"></video>`;
 
                 const pdfBtn = lesson.pdfUrl 
-                    ? `<a href="${lesson.pdfUrl}" target="_blank" download class="block text-center w-full bg-rose-950/40 border border-rose-800/50 text-rose-300 hover:bg-rose-900/50 py-2 rounded-xl text-xs font-bold transition-all mt-3"><i class="fa-solid fa-file-pdf mr-1"></i> تحميل الملزمة (PDF)</a>`
+                    ? `<a href="${lesson.pdfUrl}" download="${lesson.title}.pdf" target="_blank" class="block text-center w-full bg-rose-950/40 border border-rose-800/50 text-rose-300 hover:bg-rose-900/50 py-2 rounded-xl text-xs font-bold transition-all mt-3"><i class="fa-solid fa-file-pdf mr-1"></i> تحميل الملزمة (PDF)</a>`
                     : '';
 
                 studentGrid.innerHTML += `
@@ -525,14 +557,16 @@
                     </div>
                 `;
 
-                // عرض في لوحة المعلم
                 teacherList.innerHTML += `
                     <div class="flex items-center justify-between bg-slate-900/80 p-3 rounded-xl border border-slate-800">
-                        <div>
-                            <p class="text-sm font-bold text-white">${lesson.title}</p>
-                            <span class="text-[10px] text-slate-500">${lesson.date}</span>
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-video text-neonBlue text-sm"></i>
+                            <div>
+                                <h5 class="text-xs font-bold text-white">${lesson.title}</h5>
+                                <p class="text-[10px] text-slate-400">${lesson.date}</p>
+                            </div>
                         </div>
-                        <button onclick="deleteLesson(${lesson.id})" class="text-xs text-rose-400 hover:bg-rose-950/50 p-2 rounded-lg transition-all">
+                        <button onclick="deleteLesson(${lesson.id})" class="text-xs text-rose-400 hover:text-rose-300 p-2 rounded-lg bg-rose-950/30 border border-rose-900/40">
                             <i class="fa-solid fa-trash"></i>
                         </button>
                     </div>
@@ -543,21 +577,26 @@
         function loadStudents() {
             const studentsList = document.getElementById('teacher-students-list');
             const studentsCount = document.getElementById('students-count');
-
+            
             studentsCount.innerText = localStudents.length;
             studentsList.innerHTML = '';
 
             if (localStudents.length === 0) {
-                studentsList.innerHTML = `<p class="text-center text-slate-500 py-4 text-xs">لا يوجد طلاب مسجلون حتى الآن.</p>`;
+                studentsList.innerHTML = `<p class="text-center text-slate-500 py-4 text-xs">لا يوجد طلاب مسجلون حالياً.</p>`;
                 return;
             }
 
             localStudents.forEach(student => {
                 studentsList.innerHTML += `
-                    <div class="flex items-center justify-between bg-slate-900/60 p-3 rounded-xl border border-slate-800">
-                        <div>
-                            <p class="text-xs font-bold text-white">${student.fullname} (${student.username})</p>
-                            <p class="text-[10px] text-slate-400">${student.email} | ${student.grade}</p>
+                    <div class="flex items-center justify-between bg-slate-900/80 p-3 rounded-xl border border-slate-800">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center justify-center text-xs font-bold">
+                                <i class="fa-solid fa-user"></i>
+                            </div>
+                            <div>
+                                <h5 class="text-xs font-bold text-white">${student.fullname}</h5>
+                                <p class="text-[10px] text-slate-400">${student.username} - ${student.grade}</p>
+                            </div>
                         </div>
                     </div>
                 `;
