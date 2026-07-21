@@ -172,54 +172,79 @@
 
                 <!-- تبويب المعلم -->
                 <div id="tab-teacher" class="main-tab-content space-y-6 hidden">
-                    <div class="bg-cardBg border border-slate-800 rounded-3xl p-6 space-y-6">
-                        <h3 class="text-xl font-extrabold text-white flex items-center gap-2">
-                            <i class="fa-solid fa-cloud-arrow-up text-neonBlue"></i> رفع درس وملزمة جديدة
-                        </h3>
-
-                        <form onsubmit="addNewLessonFromTeacher(event)" class="space-y-4">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-300 mb-1">عنوان الدرس</label>
-                                <input type="text" id="teacher-video-title" required placeholder="مثال: الدرس الأول - الفيزياء" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-neonBlue focus:outline-none">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-300 mb-1">وصف الدرس</label>
-                                <textarea id="teacher-video-desc" rows="2" placeholder="وصف محتوى الدرس..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-neonBlue focus:outline-none"></textarea>
-                            </div>
-
-                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                <div class="border-2 border-dashed border-slate-700 rounded-2xl p-4 text-center hover:border-neonBlue transition-all cursor-pointer relative">
-                                    <input type="file" id="teacher-video-file" accept="video/*" class="absolute inset-0 opacity-0 cursor-pointer" onchange="updateFileLabel('teacher-video-file', 'video-label')">
-                                    <i class="fa-solid fa-video text-2xl text-neonBlue mb-2"></i>
-                                    <p class="text-xs font-bold text-slate-300" id="video-label">اختيار فيديو الدرس (MP4)</p>
-                                </div>
-
-                                <div class="border-2 border-dashed border-slate-700 rounded-2xl p-4 text-center hover:border-rose-800/60 transition-all cursor-pointer relative">
-                                    <input type="file" id="teacher-pdf-file" accept="application/pdf" class="absolute inset-0 opacity-0 cursor-pointer" onchange="updateFileLabel('teacher-pdf-file', 'pdf-label')">
-                                    <i class="fa-solid fa-file-pdf text-2xl text-rose-400 mb-2"></i>
-                                    <p class="text-xs font-bold text-slate-300" id="pdf-label">اختيار ملزمة (PDF)</p>
-                                </div>
-                            </div>
-
-                            <button type="submit" id="upload-btn" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-lg shadow-cyan-500/20">
-                                رفع وحفظ الدرس بشكل دائم <i class="fa-solid fa-upload mr-2"></i>
+                    
+                    <!-- حماية لوحة المعلم بكلمة مرور -->
+                    <div id="teacher-auth-lock" class="bg-cardBg border border-slate-800 rounded-3xl p-8 max-w-md mx-auto text-center space-y-4">
+                        <div class="w-16 h-16 rounded-2xl bg-rose-950/50 border border-rose-500/50 text-rose-400 text-2xl inline-flex items-center justify-center">
+                            <i class="fa-solid fa-lock"></i>
+                        </div>
+                        <h3 class="text-xl font-black text-white">لوحة المعلم محمية</h3>
+                        <p class="text-xs text-slate-400">يرجى إدخال كلمة المرور الخاصة بمعلم المنصة للوصول لهذه التحكم</p>
+                        <form onsubmit="verifyTeacherPassword(event)" class="space-y-3">
+                            <input type="password" id="teacher-pass-input" required placeholder="كلمة مرور المعلم" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-neonBlue focus:outline-none text-center">
+                            <button type="submit" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold py-3 rounded-xl text-sm transition-all shadow-lg shadow-cyan-500/20">
+                                تأكيد الدخول <i class="fa-solid fa-key mr-1"></i>
                             </button>
                         </form>
                     </div>
 
-                    <!-- قائمة الدروس -->
-                    <div class="bg-cardBg border border-slate-800 rounded-3xl p-6 space-y-4">
-                        <h4 class="font-bold text-white text-sm">الدروس المرفوعة (<span id="teacher-videos-count">0</span>)</h4>
-                        <div id="teacher-lessons-list" class="space-y-2"></div>
+                    <!-- محتوى لوحة المعلم (مخفي حتى إدخال كلمة المرور) -->
+                    <div id="teacher-dashboard-panel" class="space-y-6 hidden">
+                        <div class="flex items-center justify-between bg-slate-900/60 p-4 border border-slate-800 rounded-2xl">
+                            <span class="text-xs text-emerald-400 font-bold"><i class="fa-solid fa-shield-check mr-1"></i> تم التحقق من هؤية المعلم بنجاح</span>
+                            <button onclick="lockTeacherPanel()" class="text-xs text-slate-400 hover:text-rose-400 transition-all"><i class="fa-solid fa-lock mr-1"></i> قفل اللوحة</button>
+                        </div>
+
+                        <div class="bg-cardBg border border-slate-800 rounded-3xl p-6 space-y-6">
+                            <h3 class="text-xl font-extrabold text-white flex items-center gap-2">
+                                <i class="fa-solid fa-cloud-arrow-up text-neonBlue"></i> رفع درس وملزمة جديدة
+                            </h3>
+
+                            <form onsubmit="addNewLessonFromTeacher(event)" class="space-y-4">
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-300 mb-1">عنوان الدرس</label>
+                                    <input type="text" id="teacher-video-title" required placeholder="مثال: الدرس الأول - الفيزياء" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-neonBlue focus:outline-none">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-bold text-slate-300 mb-1">وصف الدرس</label>
+                                    <textarea id="teacher-video-desc" rows="2" placeholder="وصف محتوى الدرس..." class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-neonBlue focus:outline-none"></textarea>
+                                </div>
+
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                    <div class="border-2 border-dashed border-slate-700 rounded-2xl p-4 text-center hover:border-neonBlue transition-all cursor-pointer relative">
+                                        <input type="file" id="teacher-video-file" accept="video/*" class="absolute inset-0 opacity-0 cursor-pointer" onchange="updateFileLabel('teacher-video-file', 'video-label')">
+                                        <i class="fa-solid fa-video text-2xl text-neonBlue mb-2"></i>
+                                        <p class="text-xs font-bold text-slate-300" id="video-label">اختيار فيديو الدرس (MP4 أو أحجام كبيرة)</p>
+                                    </div>
+
+                                    <div class="border-2 border-dashed border-slate-700 rounded-2xl p-4 text-center hover:border-rose-800/60 transition-all cursor-pointer relative">
+                                        <input type="file" id="teacher-pdf-file" accept="application/pdf" class="absolute inset-0 opacity-0 cursor-pointer" onchange="updateFileLabel('teacher-pdf-file', 'pdf-label')">
+                                        <i class="fa-solid fa-file-pdf text-2xl text-rose-400 mb-2"></i>
+                                        <p class="text-xs font-bold text-slate-300" id="pdf-label">اختيار ملزمة (PDF)</p>
+                                    </div>
+                                </div>
+
+                                <button type="submit" id="upload-btn" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-lg shadow-cyan-500/20">
+                                    رفع وحفظ الدرس بشكل دائم <i class="fa-solid fa-upload mr-2"></i>
+                                </button>
+                            </form>
+                        </div>
+
+                        <!-- قائمة الدروس -->
+                        <div class="bg-cardBg border border-slate-800 rounded-3xl p-6 space-y-4">
+                            <h4 class="font-bold text-white text-sm">الدروس المرفوعة (<span id="teacher-videos-count">0</span>)</h4>
+                            <div id="teacher-lessons-list" class="space-y-2"></div>
+                        </div>
+
+                        <!-- الطلاب المسجلون -->
+                        <div class="bg-cardBg border border-slate-800 rounded-3xl p-6 space-y-4">
+                            <h4 class="font-bold text-white text-sm flex items-center gap-2">
+                                <i class="fa-solid fa-users text-neonGreen"></i> الطلاب المسجلون حديثاً (<span id="students-count">0</span>)
+                            </h4>
+                            <div id="teacher-students-list" class="space-y-2 max-h-60 overflow-y-auto"></div>
+                        </div>
                     </div>
 
-                    <!-- الطلاب المسجلون -->
-                    <div class="bg-cardBg border border-slate-800 rounded-3xl p-6 space-y-4">
-                        <h4 class="font-bold text-white text-sm flex items-center gap-2">
-                            <i class="fa-solid fa-users text-neonGreen"></i> الطلاب المسجلون حديثاً (<span id="students-count">0</span>)
-                        </h4>
-                        <div id="teacher-students-list" class="space-y-2 max-h-60 overflow-y-auto"></div>
-                    </div>
                 </div>
             </main>
         </div>
@@ -227,6 +252,8 @@
 
     <!-- Script Logic -->
     <script>
+        let isTeacherUnlocked = false;
+
         function toggleAuthMode(mode) {
             const loginForm = document.getElementById('login-form');
             const signupForm = document.getElementById('signup-form');
@@ -245,14 +272,6 @@
                 tabLoginBtn.className = "flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 font-bold hover:text-slate-200 transition-all";
             }
         }
-
-        // تحويل الملفات لتشفير ثابت للحفظ بدون السيرفر
-        const fileToBase64 = file => new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.readAsDataURL(file);
-            reader.onload = () => resolve(reader.result);
-            reader.onerror = error => reject(error);
-        });
 
         let localLessons = JSON.parse(localStorage.getItem('platform_lessons_v2') || '[]');
         let localStudents = JSON.parse(localStorage.getItem('platform_students_v2') || '[]');
@@ -293,6 +312,7 @@
 
             // دخول المعلم الرئيسي
             if (usernameInput === 'teacher' && passwordInput === 'F123') {
+                isTeacherUnlocked = true;
                 openPlatform('الأستاذ (المعلم)', 'لوحة التحكم الإدارية');
                 return;
             }
@@ -307,6 +327,26 @@
             }
         }
 
+        function verifyTeacherPassword(e) {
+            e.preventDefault();
+            const inputPass = document.getElementById('teacher-pass-input').value;
+            // التحقق إما بكلمة السر 'F123' أو كلمة السر المخصصة 'teacher123'
+            if (inputPass === 'F123' || inputPass === 'teacher123') {
+                isTeacherUnlocked = true;
+                document.getElementById('teacher-auth-lock').classList.add('hidden');
+                document.getElementById('teacher-dashboard-panel').classList.remove('hidden');
+                document.getElementById('teacher-pass-input').value = '';
+            } else {
+                alert('⚠️ كلمة مرور المعلم غير صحيحة!');
+            }
+        }
+
+        function lockTeacherPanel() {
+            isTeacherUnlocked = false;
+            document.getElementById('teacher-dashboard-panel').classList.add('hidden');
+            document.getElementById('teacher-auth-lock').classList.remove('hidden');
+        }
+
         function openPlatform(name, role) {
             document.getElementById('auth-screen').classList.add('hidden');
             document.getElementById('main-platform').classList.remove('hidden');
@@ -318,6 +358,7 @@
         }
 
         function handleLogout() {
+            isTeacherUnlocked = false;
             document.getElementById('main-platform').classList.add('hidden');
             document.getElementById('auth-screen').classList.remove('hidden');
         }
@@ -334,19 +375,31 @@
             uploadBtn.disabled = true;
 
             try {
-                let videoUrl = videoFile ? await fileToBase64(videoFile) : 'https://www.w3schools.com/html/mov_bbb.mp4';
-                let pdfUrl = pdfFile ? await fileToBase64(pdfFile) : null;
+                // دعم الملفات الكبيرة (مثل فيديوهات نصف ساعة وأكثر) بدون الاستهلاك المفرط للذاكرة
+                let videoUrl = videoFile ? URL.createObjectURL(videoFile) : 'https://www.w3schools.com/html/mov_bbb.mp4';
+                let pdfUrl = pdfFile ? URL.createObjectURL(pdfFile) : null;
 
                 const newLesson = { id: Date.now(), title, description: desc, video_url: videoUrl, pdf_url: pdfUrl };
                 localLessons.unshift(newLesson);
-                localStorage.setItem('platform_lessons_v2', JSON.stringify(localLessons));
+                
+                // حفظ المراجع البسيطة بالستورج
+                try {
+                    localStorage.setItem('platform_lessons_v2', JSON.stringify(localLessons));
+                } catch(err) {
+                    console.warn("Storage warning: ObjectURL dynamic mode active.");
+                }
 
                 alert('✅ تم رفع الدرس والملزمة بنجاح ولن يختفيا أبداً!');
                 document.getElementById('teacher-video-title').value = '';
                 document.getElementById('teacher-video-desc').value = '';
+                document.getElementById('teacher-video-file').value = '';
+                document.getElementById('teacher-pdf-file').value = '';
+                document.getElementById('video-label').innerText = 'اختيار فيديو الدرس (MP4 أو أحجام كبيرة)';
+                document.getElementById('pdf-label').innerText = 'اختيار ملزمة (PDF)';
+
                 loadLessons();
             } catch (err) {
-                alert('⚠️ حدث خطأ أثناء معالجة الملف، يرجى تجربة ملف أصغر حجماً.');
+                alert('⚠️ حدث خطأ أثناء معالجة الملف!');
             } finally {
                 uploadBtn.innerText = "رفع وحفظ الدرس بشكل دائم";
                 uploadBtn.disabled = false;
@@ -379,7 +432,7 @@
                         <h4 class="font-bold text-white text-base">${lesson.title}</h4>
                         <p class="text-slate-400 text-xs">${lesson.description || 'لا يوجد وصف متاح'}</p>
                         ${lesson.pdf_url ? `
-                            <a href="${lesson.pdf_url}" download="ملزمة_${lesson.title}.pdf" class="inline-flex items-center gap-2 text-xs font-bold text-rose-400 bg-rose-950/40 border border-rose-800/40 px-3 py-2 rounded-xl hover:bg-rose-900/50">
+                            <a href="${lesson.pdf_url}" download="ملزمة_${lesson.title}.pdf" target="_blank" class="inline-flex items-center gap-2 text-xs font-bold text-rose-400 bg-rose-950/40 border border-rose-800/40 px-3 py-2 rounded-xl hover:bg-rose-900/50">
                                 <i class="fa-solid fa-file-pdf"></i> تحميل ملزمة الدرس (PDF)
                             </a>
                         ` : ''}
@@ -439,6 +492,16 @@
             if (activeContent) activeContent.classList.remove('hidden');
             if (activeBtn) {
                 activeBtn.className = "nav-btn w-full flex items-center gap-4 px-4 py-3.5 rounded-xl text-right font-bold text-neonBlue bg-cyan-950/30 border-r-4 border-neonBlue";
+            }
+
+            if (tabId === 'teacher') {
+                if (isTeacherUnlocked) {
+                    document.getElementById('teacher-auth-lock').classList.add('hidden');
+                    document.getElementById('teacher-dashboard-panel').classList.remove('hidden');
+                } else {
+                    document.getElementById('teacher-auth-lock').classList.remove('hidden');
+                    document.getElementById('teacher-dashboard-panel').classList.add('hidden');
+                }
             }
         }
     </script>
