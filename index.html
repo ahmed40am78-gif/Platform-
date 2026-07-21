@@ -133,13 +133,13 @@
                 <div id="tab-dashboard" class="main-tab-content space-y-6">
                     <div class="bg-gradient-to-r from-cyan-950/40 to-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-3">
                         <h3 class="text-xl sm:text-2xl font-black text-white">مرحباً بك في المنصة التعليمية</h3>
-                        <p class="text-xs sm:text-sm text-slate-400 max-w-xl">جميع الدروس المرفوعة مضافة ومزامنة سحابياً عبر السيرفر وتظهر لجميع الطلاب تلقائياً.</p>
+                        <p class="text-xs sm:text-sm text-slate-400 max-w-xl">جميع الدروس المرفوعة مزامنة سحابياً وتظهر فوراً لكل الطلاب في جميع الأجهزة.</p>
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div class="bg-cardBg border border-slate-800 p-5 rounded-2xl flex items-center justify-between">
                             <div>
-                                <p class="text-xs text-slate-400">إجمالي الدروس السحابية</p>
+                                <p class="text-xs text-slate-400">إجمالي الدروس المتاحة</p>
                                 <h4 class="text-2xl font-black text-white mt-1" id="videos-count-dash">0</h4>
                             </div>
                             <div class="w-12 h-12 rounded-xl bg-cyan-950 text-neonBlue border border-cyan-800 flex items-center justify-center text-xl">
@@ -152,9 +152,9 @@
                 <!-- تبويب الدروس -->
                 <div id="tab-lessons" class="main-tab-content space-y-6 hidden">
                     <div class="flex items-center justify-between">
-                        <h3 class="text-xl font-extrabold text-white">الدروس والملازم السحابية</h3>
+                        <h3 class="text-xl font-extrabold text-white">الدروس والملازم</h3>
                         <button onclick="fetchCloudLessons()" class="text-xs bg-cyan-950 text-neonBlue border border-cyan-800 px-3 py-2 rounded-xl hover:bg-cyan-900 transition-all">
-                            <i class="fa-solid fa-rotate mr-1"></i> تحديث الدروس
+                            <i class="fa-solid fa-rotate mr-1"></i> تحديث القائمة
                         </button>
                     </div>
                     <div id="student-lessons-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
@@ -178,13 +178,13 @@
 
                     <div id="teacher-dashboard-panel" class="space-y-6 hidden">
                         <div class="flex items-center justify-between bg-slate-900/60 p-4 border border-slate-800 rounded-2xl">
-                            <span class="text-xs text-emerald-400 font-bold"><i class="fa-solid fa-shield-check mr-1"></i> وضع المعلم السحابي مفعل</span>
+                            <span class="text-xs text-emerald-400 font-bold"><i class="fa-solid fa-shield-check mr-1"></i> لوحة المعلم متصلة بالسحابة</span>
                             <button onclick="lockTeacherPanel()" class="text-xs text-slate-400 hover:text-rose-400 transition-all"><i class="fa-solid fa-lock mr-1"></i> قفل اللوحة</button>
                         </div>
 
                         <div class="bg-cardBg border border-slate-800 rounded-3xl p-6 space-y-6">
                             <h3 class="text-xl font-extrabold text-white flex items-center gap-2">
-                                <i class="fa-solid fa-cloud-arrow-up text-neonBlue"></i> إضافة درس وملزمة سحابية للجميع
+                                <i class="fa-solid fa-cloud-arrow-up text-neonBlue"></i> إضافة درس وملزمة سحابية
                             </h3>
 
                             <form onsubmit="addNewLessonFromTeacher(event)" class="space-y-4">
@@ -198,26 +198,26 @@
                                 </div>
 
                                 <div>
-                                    <label class="block text-xs font-bold text-slate-300 mb-1">رابط الفيديو (YouTube أو رابط MP4 مباشر سحابي)</label>
-                                    <input type="url" id="teacher-video-url" required placeholder="https://www.youtube.com/watch?v=xxxxx" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-neonBlue focus:outline-none">
-                                    <p class="text-[11px] text-amber-400 mt-1">⚠️ لكي يظهر الفيديو لجميع الطلاب على GitHub Pages، يرجى وضع رابط فيديو من YouTube أو منصة استضافة سحابية.</p>
+                                    <label class="block text-xs font-bold text-slate-300 mb-1">رابط الفيديو (ضع رابط YouTube مباشر)</label>
+                                    <input type="url" id="teacher-video-url" required placeholder="https://www.youtube.com/watch?v=XXXXXX" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-neonBlue focus:outline-none">
+                                    <p class="text-[11px] text-cyan-400 mt-1">📌 يمكنك استخدام أي رابط فيديو من YouTube (عادي أو غير مدرج Unlisted) وسيتم معالجته وتدبيره تلقائياً ليشتغل للطلاب.</p>
                                 </div>
 
                                 <div>
-                                    <label class="block text-xs font-bold text-slate-300 mb-1">رابط الملزمة PDF (رابط سحابي مباشر مثل Google Drive أو MediaFire أو Dropbox)</label>
-                                    <input type="url" id="teacher-pdf-url" placeholder="https://drive.google.com/file/d/xxxxx/view" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-rose-400 focus:outline-none">
-                                    <p class="text-[11px] text-slate-400 mt-1">💡 يمكنك رفع ملف الـ PDF على Google Drive وجعل المشاركة "عامة للجميع" ثم وضع الرابط هنا.</p>
+                                    <label class="block text-xs font-bold text-slate-300 mb-1">رابط الملزمة PDF (رابط Google Drive أو MediaFire أو Dropbox)</label>
+                                    <input type="url" id="teacher-pdf-url" placeholder="https://drive.google.com/file/d/XXXX/view" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:border-rose-400 focus:outline-none">
+                                    <p class="text-[11px] text-slate-400 mt-1">💡 لرفع PDF: ارفع الملف على Google Drive > اضغط مشاركة (عام لمن يملك الرابط) > انسخ الرابط وضعه هنا.</p>
                                 </div>
 
                                 <button type="submit" id="upload-btn" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white font-bold py-3.5 rounded-xl text-sm transition-all shadow-lg shadow-cyan-500/20 flex items-center justify-center gap-2">
-                                    <span>نشر الدرس سحابياً لكافة الطلاب</span> <i class="fa-solid fa-paper-plane"></i>
+                                    <span id="btn-text">نشر الدرس سحابياً للجميع</span> <i class="fa-solid fa-paper-plane"></i>
                                 </button>
                             </form>
                         </div>
 
                         <!-- قائمة الدروس -->
                         <div class="bg-cardBg border border-slate-800 rounded-3xl p-6 space-y-4">
-                            <h4 class="font-bold text-white text-sm">الدروس المتاحة للطلاب (<span id="teacher-videos-count">0</span>)</h4>
+                            <h4 class="font-bold text-white text-sm">الدروس المضافة حالياً (<span id="teacher-videos-count">0</span>)</h4>
                             <div id="teacher-lessons-list" class="space-y-2"></div>
                         </div>
                     </div>
@@ -227,17 +227,18 @@
     </div>
 
     <script>
-        // رابط قاعدة بيانات سحابية عامة للتزامن المجاني السريع بين المعلم وجميع الطلاب عبر JSONBin
-        const CLOUD_API_URL = "https://api.jsonbin.io/v3/b/663c1a84e41b4d34e402b881"; 
+        // نقطة نهاية سحابية مجانية لحفظ الملازم والدروس (JSONBin)
+        const BIN_ID = "663c1a84e41b4d34e402b881";
+        const CLOUD_API_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`; 
         
         let localLessons = [];
-        let localStudents = JSON.parse(localStorage.getItem('platform_students_v3') || '[]');
+        let localStudents = JSON.parse(localStorage.getItem('platform_students_v4') || '[]');
 
         window.addEventListener('DOMContentLoaded', () => {
             fetchCloudLessons();
         });
 
-        // جلب الدروس السحابية لكي تظهر لأي طالب يدخل المنصة
+        // جلب البيانات من السحابة
         async function fetchCloudLessons() {
             try {
                 const res = await fetch(CLOUD_API_URL + '/latest', {
@@ -245,20 +246,16 @@
                 });
                 if (res.ok) {
                     const data = await res.json();
-                    if (Array.isArray(data)) {
-                        localLessons = data;
-                    } else if (data.lessons) {
-                        localLessons = data.lessons;
-                    }
+                    localLessons = Array.isArray(data) ? data : (data.lessons || []);
                 }
             } catch (err) {
-                console.log("استخدام البيانات المحلية كبديل...");
+                console.log("تعذر الاتصال بالسحابة، تحميل النسخة المحفوظة مسبقاً...");
                 localLessons = JSON.parse(localStorage.getItem('shared_lessons_cache') || '[]');
             }
             loadLessons();
         }
 
-        // حفظ وتحديث الدرس سحابياً للجميع
+        // حفظ البيانات في السحابة
         async function saveCloudLessons() {
             localStorage.setItem('shared_lessons_cache', JSON.stringify(localLessons));
             try {
@@ -270,8 +267,37 @@
                     body: JSON.stringify(localLessons)
                 });
             } catch (err) {
-                console.error("خطأ أثناء المزامنة السحابية:", err);
+                console.error("خطأ التزامن السحابي:", err);
             }
+        }
+
+        // دالة تحويل أي رابط يوتيوب إلى رابط Embed صالح للعرض المباشر
+        function parseYouTubeUrl(url) {
+            if (!url) return '';
+            let videoId = '';
+            
+            // التعامل مع روابط youtu.be/ID
+            if (url.includes('youtu.be/')) {
+                videoId = url.split('youtu.be/')[1].split('?')[0].split('&')[0];
+            } 
+            // التعامل مع روابط youtube.com/watch?v=ID
+            else if (url.includes('youtube.com/watch')) {
+                const urlParams = new URLSearchParams(url.split('?')[1]);
+                videoId = urlParams.get('v');
+            } 
+            // التعامل مع روابط shorts أو embed
+            else if (url.includes('youtube.com/shorts/')) {
+                videoId = url.split('youtube.com/shorts/')[1].split('?')[0];
+            } else if (url.includes('youtube.com/embed/')) {
+                return url;
+            }
+
+            if (videoId) {
+                return `https://www.youtube-nocookie.com/embed/${videoId}?rel=0`;
+            }
+            
+            // إذا كان رابط فيديو مباشر mp4 مثلاً
+            return url;
         }
 
         function switchTab(tabName) {
@@ -316,15 +342,13 @@
             const grade = document.getElementById('signup-grade').value;
             const password = document.getElementById('signup-password').value;
 
-            const existingStudent = localStudents.find(s => s.username === username);
-            if (existingStudent) {
-                alert('⚠️ اسم المستخدم مستخدم بالفعل.');
+            if (localStudents.some(s => s.username === username)) {
+                alert('⚠️ اسم المستخدم هذا مسجل مسبقاً.');
                 return;
             }
 
-            const newStudent = { fullname, username, grade, password };
-            localStudents.push(newStudent);
-            localStorage.setItem('platform_students_v3', JSON.stringify(localStudents));
+            localStudents.push({ fullname, username, grade, password });
+            localStorage.setItem('platform_students_v4', JSON.stringify(localStudents));
 
             alert('✅ تم إنشاء الحساب بنجاح!');
             document.getElementById('login-username').value = username;
@@ -345,7 +369,7 @@
             if (foundStudent) {
                 openPlatform(foundStudent.fullname, foundStudent.grade);
             } else {
-                alert('⚠️ اسم المستخدم أو كلمة المرور غير صحيحة!');
+                alert('⚠️ بيانات الدخول غير صحيحة!');
             }
         }
 
@@ -357,7 +381,7 @@
                 document.getElementById('teacher-dashboard-panel').classList.remove('hidden');
                 document.getElementById('teacher-pass-input').value = '';
             } else {
-                alert('⚠️ كلمة المرور غير صحيحة!');
+                alert('⚠️ كلمة المرور خاطئة!');
             }
         }
 
@@ -379,40 +403,23 @@
             document.getElementById('auth-screen').classList.remove('hidden');
         }
 
-        function getEmbedVideoUrl(url) {
-            if (!url) return '';
-            let videoId = '';
-            if (url.includes('youtu.be/')) {
-                videoId = url.split('youtu.be/')[1].split('?')[0].split('&')[0];
-            } else if (url.includes('youtube.com/watch')) {
-                const urlParams = new URLSearchParams(new URL(url).search);
-                videoId = urlParams.get('v');
-            } else if (url.includes('youtube.com/embed/')) {
-                return url;
-            }
-
-            if (videoId) {
-                return `https://www.youtube.com/embed/${videoId}`;
-            }
-            return url;
-        }
-
         async function addNewLessonFromTeacher(e) {
             e.preventDefault();
+            const btnText = document.getElementById('btn-text');
+            btnText.innerText = 'جاري النشر للسحابة...';
+
             const title = document.getElementById('teacher-video-title').value.trim();
             const desc = document.getElementById('teacher-video-desc').value.trim();
             const rawVideoUrl = document.getElementById('teacher-video-url').value.trim();
             const pdfUrl = document.getElementById('teacher-pdf-url').value.trim();
 
-            const processedVideoUrl = getEmbedVideoUrl(rawVideoUrl);
-            const isEmbed = processedVideoUrl.includes('youtube.com/embed');
+            const finalVideoUrl = parseYouTubeUrl(rawVideoUrl);
 
             const newLesson = {
                 id: 'lesson_' + Date.now(),
                 title,
                 desc,
-                videoUrl: processedVideoUrl,
-                isEmbed,
+                videoUrl: finalVideoUrl,
                 pdfUrl,
                 createdAt: new Date().toLocaleDateString('ar-EG')
             };
@@ -420,18 +427,19 @@
             localLessons.unshift(newLesson);
             await saveCloudLessons();
 
-            alert('✅ تم نشر الدرس بنجاح وسيكون متاحاً لجميع الطلاب الآن!');
+            alert('✅ تم نشر الدرس والملزمة بنجاح وظهرت لدى جميع الطلاب!');
 
             document.getElementById('teacher-video-title').value = '';
             document.getElementById('teacher-video-desc').value = '';
             document.getElementById('teacher-video-url').value = '';
             document.getElementById('teacher-pdf-url').value = '';
+            btnText.innerText = 'نشر الدرس سحابياً للجميع';
 
             loadLessons();
         }
 
         async function deleteLesson(id) {
-            if (confirm('هل أنت تأكد من حذف هذا الدرس من السحابة؟')) {
+            if (confirm('هل أنت متأكد من حذف هذا الدرس من السحابة؟')) {
                 localLessons = localLessons.filter(l => l.id !== id);
                 await saveCloudLessons();
                 loadLessons();
@@ -453,30 +461,25 @@
                     grid.innerHTML = `<p class="col-span-full text-center text-slate-500 py-8">لا توجد دروس مرفوعة حالياً.</p>`;
                 } else {
                     localLessons.forEach(lesson => {
-                        let videoHtml = '';
-                        if (lesson.isEmbed) {
-                            videoHtml = `<iframe src="${lesson.videoUrl}" class="w-full h-48 rounded-xl" frameborder="0" allowfullscreen></iframe>`;
-                        } else {
-                            videoHtml = `<video src="${lesson.videoUrl}" controls class="w-full h-48 rounded-xl bg-black"></video>`;
-                        }
+                        let videoIframe = `<iframe src="${lesson.videoUrl}" class="w-full h-48 rounded-xl border border-slate-800" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
 
-                        let pdfHtml = '';
+                        let pdfBtn = '';
                         if (lesson.pdfUrl) {
-                            pdfHtml = `<a href="${lesson.pdfUrl}" target="_blank" class="inline-flex items-center gap-2 text-xs bg-rose-950/50 text-rose-400 border border-rose-800/60 hover:bg-rose-900/60 px-3 py-2 rounded-xl transition-all font-bold mt-2">
-                                <i class="fa-solid fa-file-pdf"></i> فتح / تحميل الملزمة PDF
+                            pdfBtn = `<a href="${lesson.pdfUrl}" target="_blank" class="inline-flex items-center gap-2 text-xs bg-rose-950/60 text-rose-300 border border-rose-800/80 hover:bg-rose-900 px-3 py-2 rounded-xl transition-all font-bold">
+                                <i class="fa-solid fa-file-pdf"></i> فتح / تحميل الملزمة
                             </a>`;
                         }
 
                         grid.innerHTML += `
-                            <div class="bg-cardBg border border-slate-800 rounded-2xl p-4 flex flex-col justify-between space-y-3">
+                            <div class="bg-cardBg border border-slate-800 rounded-2xl p-4 flex flex-col justify-between space-y-3 shadow-lg">
                                 <div>
-                                    ${videoHtml}
+                                    ${videoIframe}
                                     <h4 class="font-bold text-white text-base mt-3">${lesson.title}</h4>
                                     <p class="text-xs text-slate-400 mt-1">${lesson.desc || ''}</p>
                                 </div>
                                 <div class="flex items-center justify-between pt-2 border-t border-slate-800/80">
                                     <span class="text-[10px] text-slate-500">${lesson.createdAt || ''}</span>
-                                    ${pdfHtml}
+                                    ${pdfBtn}
                                 </div>
                             </div>
                         `;
@@ -487,7 +490,7 @@
             if (teacherList) {
                 teacherList.innerHTML = '';
                 if (localLessons.length === 0) {
-                    teacherList.innerHTML = `<p class="text-xs text-slate-500">لا توجد دروس.</p>`;
+                    teacherList.innerHTML = `<p class="text-xs text-slate-500">لا توجد دروس حالياً.</p>`;
                 } else {
                     localLessons.forEach(lesson => {
                         teacherList.innerHTML += `
@@ -507,4 +510,4 @@
         }
     </script>
 </body>
-</html>
+                                                                                              </html>
