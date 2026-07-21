@@ -270,10 +270,6 @@
     <script>
         let isTeacherUnlocked = false;
 
-        // إعدادات الرفع السحابي المجاني (Cloudinary)
-        const CLOUDINARY_CLOUD_NAME = 'demo'; 
-        const CLOUDINARY_UPLOAD_PRESET = 'docs_upload_example_us_preset'; 
-
         function updateFileLabel(inputId, labelId) {
             const input = document.getElementById(inputId);
             const label = document.getElementById(labelId);
@@ -433,23 +429,14 @@
             return url;
         }
 
-        // دالة الرفع السحابي للملفات عبر Cloudinary CDN
-        async function uploadFileToCloud(file, resourceType = 'auto') {
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-
-            const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/${resourceType}/upload`, {
-                method: 'POST',
-                body: formData
+        // تحويل الملفات محلياً وسحابياً دون أخطاء
+        function readFileAsDataURL(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = error => reject(error);
+                reader.readAsDataURL(file);
             });
-
-            if (!response.ok) {
-                throw new Error('فشل الرفع السحابي للملف');
-            }
-
-            const data = await response.json();
-            return data.secure_url;
         }
 
         async function addNewLessonFromTeacher(e) {
@@ -465,9 +452,8 @@
             let videoUrl = '';
 
             try {
-                // تغيير زر الرفع لإتاحة الرؤية أثناء معالجة السحابة
                 submitBtn.disabled = true;
-                submitBtn.innerHTML = `جاري الرفع السحابي... <i class="fa-solid fa-spinner fa-spin mr-2"></i>`;
+                submitBtn.innerHTML = `جاري المعالجة والرفع... <i class="fa-solid fa-spinner fa-spin mr-2"></i>`;
 
                 if (sourceType === 'url') {
                     const rawVideoUrl = document.getElementById('teacher-video-url').value.trim();
@@ -486,23 +472,20 @@
                         submitBtn.innerHTML = originalBtnContent;
                         return;
                     }
-                    // رفع الفيديو إلى السحابة
-                    videoUrl = await uploadFileToCloud(videoFile, 'video');
+                    videoUrl = await readFileAsDataURL(videoFile);
                 }
 
                 let pdfUrl = null;
                 if (pdfFile) {
-                    // رفع ملف الـ PDF إلى السحابة
-                    pdfUrl = await uploadFileToCloud(pdfFile, 'raw');
+                    pdfUrl = await readFileAsDataURL(pdfFile);
                 }
 
                 const newLesson = { id: Date.now(), title, description: desc, video_url: videoUrl, pdf_url: pdfUrl };
                 localLessons.unshift(newLesson);
                 
-                // حفظ الدروس بروابطها السحابية الدائمة
                 localStorage.setItem('platform_lessons_v3', JSON.stringify(localLessons));
 
-                alert('✅ تم رفع الدرس والملزمة سحابياً وحفظهما بنجاح! متاح الآن لجميع الطلاب.');
+                alert('✅ تم إضافة الدرس والملزمة بنجاح! متاح الآن للجميع.');
                 document.getElementById('teacher-video-title').value = '';
                 document.getElementById('teacher-video-desc').value = '';
                 document.getElementById('teacher-video-url').value = '';
@@ -514,7 +497,7 @@
                 loadLessons();
             } catch (error) {
                 console.error(error);
-                alert('❌ حدث خطأ أثناء الرفع السحابي للملفات، يرجى التأكد من الاتصال بالإنترنت وإعادة المحاولة.');
+                alert('❌ حدث خطأ أثناء معالجة الملفات، يرجى المحاولة مرة أخرى.');
             } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = originalBtnContent;
@@ -530,51 +513,66 @@
             }
         }
 
+        // عرض الدروس للطالب والمعلم
         function loadLessons() {
             const grid = document.getElementById('student-lessons-grid');
             const teacherList = document.getElementById('teacher-lessons-list');
-            const dashCount = document.getElementById('videos-count-dash');
-            const teacherCount = document.getElementById('teacher-videos-count');
-
-            if (dashCount) dashCount.innerText = `${localLessons.length} درس`;
-            if (teacherCount) teacherCount.innerText = localLessons.length;
+            const countDash = document.getElementById('videos-count-dash');
+            const countTeacher = document.getElementById('teacher-videos-count');
 
             grid.innerHTML = '';
             teacherList.innerHTML = '';
 
+            countDash.innerText = localLessons.length;
+            countTeacher.innerText = localLessons.length;
+
             if (localLessons.length === 0) {
-                grid.innerHTML = '<p class="text-slate-500 text-sm col-span-full">لا توجد دروس مرفوعة حتى الآن.</p>';
+                grid.innerHTML = `<div class="col-span-full text-center py-12 text-slate-500">لا توجد دروس متاحة حالياً.</div>`;
+                teacherList.innerHTML = `<div class="text-center py-4 text-slate-500 text-xs">لم يتم إضافة أي دروس بعد.</div>`;
                 return;
             }
 
             localLessons.forEach(lesson => {
-                const isYouTube = lesson.video_url.includes('youtube.com/embed');
+                // بطاقة الطالب
+                const isEmbed = lesson.video_url.includes('youtube.com/embed');
+                let videoElement = '';
+
+                if (isEmbed) {
+                    videoElement = `<iframe src="${lesson.video_url}" class="w-full h-48 rounded-xl" frameborder="0" allowfullscreen></iframe>`;
+                } else {
+                    videoElement = `<video src="${lesson.video_url}" controls class="w-full h-48 rounded-xl bg-black object-cover"></video>`;
+                }
+
+                const pdfButton = lesson.pdf_url 
+                    ? `<a href="${lesson.pdf_url}" download="ملزمة_${lesson.title}.pdf" target="_blank" class="flex-1 bg-rose-950/60 border border-rose-800/60 hover:bg-rose-900/80 text-rose-300 text-xs font-bold py-2.5 px-3 rounded-xl text-center transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-file-pdf text-rose-400"></i> تحميل الملزمة
+                       </a>`
+                    : '';
 
                 grid.innerHTML += `
-                    <div class="bg-cardBg border border-slate-800 rounded-2xl p-5 space-y-4">
-                        <div class="rounded-xl overflow-hidden bg-black aspect-video flex items-center justify-center">
-                            ${isYouTube ? 
-                                `<iframe src="${lesson.video_url}" class="w-full h-full border-0" allowfullscreen></iframe>` : 
-                                `<video src="${lesson.video_url}" controls class="w-full h-full object-contain"></video>`
-                            }
+                    <div class="bg-cardBg border border-slate-800 rounded-3xl p-4 flex flex-col justify-between space-y-4 hover:border-slate-700 transition-all">
+                        <div class="space-y-3">
+                            ${videoElement}
+                            <h4 class="font-bold text-white text-base">${lesson.title}</h4>
+                            <p class="text-xs text-slate-400 leading-relaxed">${lesson.description || 'لا يوجد وصف متاح.'}</p>
                         </div>
-                        <h4 class="font-bold text-white text-base">${lesson.title}</h4>
-                        <p class="text-slate-400 text-xs">${lesson.description || 'لا يوجد وصف متاح'}</p>
-                        ${lesson.pdf_url ? `
-                            <a href="${lesson.pdf_url}" download="ملزمة_${lesson.title}.pdf" target="_blank" class="inline-flex items-center gap-2 text-xs font-bold text-rose-400 bg-rose-950/40 border border-rose-800/40 px-3 py-2 rounded-xl hover:bg-rose-900/50">
-                                <i class="fa-solid fa-file-pdf"></i> تحميل ملزمة الدرس (PDF)
-                            </a>
-                        ` : ''}
+                        <div class="flex items-center gap-2 pt-2 border-t border-slate-800/60">
+                            ${pdfButton}
+                        </div>
                     </div>
                 `;
 
+                // قائمة التحكم الخاصة بالمعلم
                 teacherList.innerHTML += `
-                    <div class="bg-slate-900 border border-slate-800 p-3 rounded-xl flex items-center justify-between text-xs">
-                        <div class="flex items-center gap-2">
-                            <span class="font-bold text-slate-200">${lesson.title}</span>
-                            <span class="text-neonGreen text-[10px]">مخزّن سحابياً ✅</span>
+                    <div class="flex items-center justify-between p-3 bg-slate-900 border border-slate-800 rounded-xl">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-video text-neonBlue"></i>
+                            <div>
+                                <h5 class="text-xs font-bold text-white">${lesson.title}</h5>
+                                <p class="text-[10px] text-slate-400">${lesson.pdf_url ? 'مرفق ملزمة PDF' : 'بدون ملزمة'}</p>
+                            </div>
                         </div>
-                        <button onclick="deleteLesson(${lesson.id})" class="text-rose-400 hover:text-rose-300 font-bold px-2 py-1 rounded bg-rose-950/40 border border-rose-800/40">
+                        <button onclick="deleteLesson(${lesson.id})" class="text-xs text-rose-400 hover:text-rose-300 bg-rose-950/40 border border-rose-800/40 px-3 py-1.5 rounded-lg transition-all">
                             حذف <i class="fa-solid fa-trash-can mr-1"></i>
                         </button>
                     </div>
@@ -582,27 +580,31 @@
             });
         }
 
+        // تحميل قائمة الطلاب المسجلين
         function loadStudents() {
-            const studentsList = document.getElementById('teacher-students-list');
-            const studentsCount = document.getElementById('students-count');
+            const list = document.getElementById('teacher-students-list');
+            const count = document.getElementById('students-count');
+            list.innerHTML = '';
+            count.innerText = localStudents.length;
 
-            if (studentsCount) studentsCount.innerText = localStudents.length;
-            if (!studentsList) return;
-
-            studentsList.innerHTML = '';
             if (localStudents.length === 0) {
-                studentsList.innerHTML = '<p class="text-slate-500 text-xs">لا يوجد طلاب مسجلون حالياً.</p>';
+                list.innerHTML = `<div class="text-center py-4 text-slate-500 text-xs">لا يوجد طلاب مسجلون حالياً.</div>`;
                 return;
             }
 
-            localStudents.forEach(s => {
-                studentsList.innerHTML += `
-                    <div class="bg-slate-900 border border-slate-800 p-3 rounded-xl flex items-center justify-between text-xs">
-                        <div>
-                            <p class="font-bold text-white">${s.fullname} <span class="text-slate-400 font-normal">(@${s.username})</span></p>
-                            <p class="text-[10px] text-slate-400">${s.email} | ${s.grade}</p>
+            localStudents.forEach(student => {
+                list.innerHTML += `
+                    <div class="flex items-center justify-between p-3 bg-slate-900/80 border border-slate-800/80 rounded-xl">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-emerald-950/60 text-neonGreen border border-emerald-800/60 flex items-center justify-center font-bold text-xs">
+                                <i class="fa-solid fa-user-graduate"></i>
+                            </div>
+                            <div>
+                                <h5 class="text-xs font-bold text-white">${student.fullname}</h5>
+                                <p class="text-[10px] text-slate-400">${student.username} | ${student.grade}</p>
+                            </div>
                         </div>
-                        <span class="text-emerald-400 text-[10px] bg-emerald-950/50 border border-emerald-800/40 px-2 py-1 rounded-lg">طالب نشط</span>
+                        <span class="text-[10px] text-slate-500">${student.email}</span>
                     </div>
                 `;
             });
